@@ -1,0 +1,34 @@
+{
+	"name" : "barogla/acl",
+	"description" : "Acl Component - Zoe",
+	"type" : "library",
+	"license" : "MIT",
+	"authors" : [{
+			"name" : "CurtisBarogla",
+			"email" : "curtis_barogla@outlook.fr",
+			"role" : "T.B.",
+			"homepage" : "https://github.com/CurtisBarogla"
+		}
+	],
+	"homepage" : "https://github.com/CurtisBarogla/Acl",
+	"minimum-stability" : "stable",
+	"require" : {
+		"php" : ">= 7.1",
+		"barogla/user" : "dev-master"
+	},
+	"require-dev" : {
+		"barogla/internal" : "dev-master"
+	},
+	"autoload" : {
+		"psr-4" : {
+			"Zoe\\Component\\Acl\\" : "./src",
+			"ZoeTest\\Component\\Acl\\" : "./tests"
+		},
+		"exclude-from-classmap" : [
+			"tests"
+		]
+	},
+	"keywords" : [
+		"acl"
+	]
+}
