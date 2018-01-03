@@ -16,6 +16,7 @@ use PHPUnit\Framework\TestCase;
 use Zoe\Component\Acl\Mask\MaskCollection;
 use Zoe\Component\Acl\Mask\Mask;
 use Zoe\Component\Internal\GeneratorTrait;
+use Zoe\Component\Acl\Exception\InvalidMaskException;
 
 /**
  * MaskCollection testcase
@@ -154,9 +155,9 @@ class MaskCollectionTest extends TestCase
     }
     
     /**
-     * @see \Zoe\Component\Acl\Mask\MaskCollection::restore()
+     * @see \Zoe\Component\Acl\Mask\MaskCollection::restoreFromJson()
      */
-    public function testRestore(): void
+    public function testRestoreFromJson(): void
     {
         $maskFoo = new Mask("Foo", 1);
         $maskBar = new Mask("Bar", 2);
@@ -167,11 +168,29 @@ class MaskCollectionTest extends TestCase
         
         $json = \json_encode($collection);
         
-        $this->assertEquals($collection, MaskCollection::restore($json));
+        $this->assertEquals($collection, MaskCollection::restoreFromJson($json));
         
         $json = \json_decode($json, true);
         
-        $this->assertEquals($collection, MaskCollection::restore($json));
+        $this->assertEquals($collection, MaskCollection::restoreFromJson($json));
+        
+        // no mask
+        $collection = new MaskCollection("Foo");
+        
+        $json = \json_encode($collection);
+        
+        $this->assertEquals($collection, MaskCollection::restoreFromJson($json));
+    }
+    
+                    /**_____EXCEPTIONS_____**/
+    
+    public function testExceptionGetWhenInvalidMaskNameIsGiven(): void
+    {
+        $this->expectException(InvalidMaskException::class);
+        $this->expectExceptionMessage("This mask 'Foo' into 'Bar' collection is not defined");
+        
+        $collection = new MaskCollection("Bar");
+        $collection->get("Foo");
     }
     
 }

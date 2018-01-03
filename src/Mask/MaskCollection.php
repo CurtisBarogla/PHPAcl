@@ -13,14 +13,16 @@ declare(strict_types = 1);
 namespace Zoe\Component\Acl\Mask;
 
 use Zoe\Component\Acl\Exception\InvalidMaskException;
+use Zoe\Component\Acl\JsonRestorableInterface;
 
 /**
- * Collection of bit masks
+ * Collection of bit masks.
+ * JsonRestorable
  * 
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-class MaskCollection implements \JsonSerializable, \IteratorAggregate, \Countable
+class MaskCollection implements JsonRestorableInterface, \IteratorAggregate, \Countable
 {
     
     /**
@@ -109,6 +111,11 @@ class MaskCollection implements \JsonSerializable, \IteratorAggregate, \Countabl
      */
     public function get(string $mask): Mask
     {
+        if(!isset($this->masks[$mask]))
+            throw new InvalidMaskException(\sprintf("This mask '%s' into '%s' collection is not defined",
+                $mask,
+                $this->identifier));
+        
         return $this->masks[$mask];
     }
     
@@ -138,7 +145,9 @@ class MaskCollection implements \JsonSerializable, \IteratorAggregate, \Countabl
 
     /**
      * Restore a mask collection from his json representation
-     * This json representation can be either a string or an array 
+     * This json representation can be either a string or an array
+     * 
+     * @see \Zoe\Component\Acl\JsonRestorableInterface::restoreFromJson()
      * 
      * @param string|array $json
      *   String or array collection representation
@@ -146,15 +155,17 @@ class MaskCollection implements \JsonSerializable, \IteratorAggregate, \Countabl
      * @return MaskCollection
      *   Mask collection restored
      */
-    public static function restore($json): MaskCollection
+    public static function restoreFromJson($json): MaskCollection
     {
         if(!\is_array($json))
             $json = \json_decode($json, true);
         
         $collection = new MaskCollection($json["identifier"]);
-        $collection->masks = \array_map(function(array $mask): Mask {
-            return new Mask($mask["identifier"], $mask["value"]);
-        }, $json["masks"]);
+        $collection->masks = (null !== $masks = $json["masks"]) ? 
+            \array_map(function(array $mask): Mask {
+                return new Mask($mask["identifier"], $mask["value"]);
+            }, $masks) 
+            : null;
         
         return $collection;
     }
