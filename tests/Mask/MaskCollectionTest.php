@@ -132,6 +132,10 @@ class MaskCollectionTest extends TestCase
         $collection->add($maskBar);
         
         $this->assertSame(2, \count($collection));
+        
+        $collection = new MaskCollection("Foo");
+        
+        $this->assertSame(0, \count($collection));
     }
     
     /**

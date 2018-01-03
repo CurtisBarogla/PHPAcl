@@ -118,6 +118,9 @@ class MaskCollection implements \JsonSerializable, \IteratorAggregate, \Countabl
      */
     public function count(): int
     {
+        if(null === $this->masks)
+            return 0;
+        
         return \count($this->masks);
     }
     
