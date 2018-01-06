@@ -46,6 +46,17 @@ interface EntityInterface extends \IteratorAggregate, \Countable
     public function get(string $value): array;
     
     /**
+     * Check if a value is registered into the entity
+     * 
+     * @param string $value
+     *   Value name
+     * 
+     * @return bool
+     *   True if the entity has the given value. False otherwiser
+     */
+    public function has(string $value): bool;
+    
+    /**
      * Get processor handling this entity.
      * Return null if no processor is setted
      * 

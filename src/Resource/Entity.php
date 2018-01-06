@@ -109,6 +109,15 @@ class Entity implements EntityInterface, JsonRestorableInterface
             
         return $this->values[$value];
     }
+    
+    /**
+     * {@inheritDoc}
+     * @see \Zoe\Component\Acl\Resource\EntityInterface::has()
+     */
+    public function has(string $value): bool
+    {
+        return isset($this->values[$value]);
+    }
    
     /**
      * {@inheritDoc}

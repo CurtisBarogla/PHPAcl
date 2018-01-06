@@ -76,6 +76,20 @@ class EntityTest extends TestCase
     }
     
     /**
+     * @see \Zoe\Component\Acl\Resource\Entity::has()
+     */
+    public function testHas(): void
+    {
+        $entity = new Entity("Foo");
+        
+        $this->assertFalse($entity->has("Foo"));
+        
+        $entity->add("Foo", []);
+        
+        $this->assertTrue($entity->has("Foo"));
+    }
+    
+    /**
      * @see \Zoe\Component\Acl\Resource\Entity::getProcessor()
      */
     public function testGetProcessor(): void
