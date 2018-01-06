@@ -126,7 +126,8 @@ interface ResourceInterface
     public function getEntities(): ?array;
         
     /**
-     * Process the resource values over a set of AclProcessor for an acl user
+     * Process the resource values over a set of AclProcessor for an acl user.
+     * Entity with no value or processor defined MUST be skipped
      * 
      * @param AclProcessorInterface[] $processors
      *   Array of processors indexed by its name
