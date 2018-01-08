@@ -25,7 +25,7 @@ use Zoe\Component\Acl\Exception\EntityValueNotFoundException;
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-class AclUser implements AclUserInterface
+final class AclUser implements AclUserInterface
 {
     
     /**

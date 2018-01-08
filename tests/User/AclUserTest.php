@@ -217,6 +217,19 @@ class AclUserTest extends TestCase
     }
     
     /**
+     * @see \Zoe\Component\Acl\User\AclUser::getPermission()
+     */
+    public function testGetPermission(): void
+    {
+        $wrapped = $this->getMockBuilder(UserInterface::class)->getMock();
+        $permission = $this->getMockBuilder(Mask::class)->disableOriginalConstructor()->getMock();
+        
+        $user = new AclUser($permission, $wrapped);
+        
+        $this->assertSame($permission, $user->getPermission());
+    }
+    
+    /**
      * @see \Zoe\Component\Acl\User\AclUser::__clone()
      */
     public function testClone(): void
