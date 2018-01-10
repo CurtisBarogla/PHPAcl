@@ -59,7 +59,7 @@ class Acl implements AclInterface
     private static $loaded = [];
     
     /**
-     * Already determine permission masks
+     * Already determined permission masks
      * 
      * @var Mask[]
      */
@@ -112,8 +112,8 @@ class Acl implements AclInterface
         $fromUser = false;
         $loaded = $this->getResource($resource);
         $identifier = "_PERMISSION_{$resource}";
-        $required = (\count($permissions) > 1) ? $this->getMaskMultiplePermissions($loaded, $permissions)->getValue() : $loaded->getPermission($permissions[0])->getValue();
-        $permissionMask = $this->initMaskPermission($user, $loaded, $identifier, $fromUser);
+        $required = $this->initResourceMaskPermission($loaded, $permissions)->getValue();
+        $permissionMask = $this->initUserMaskPermission($user, $loaded, $identifier, $fromUser);
         
         if(!$fromUser) {
             $user = new AclUser($permissionMask, $user);
@@ -131,8 +131,7 @@ class Acl implements AclInterface
         if(!$user instanceof AclUserInterface)
             $user = new AclUser($permissionMask, $user);
 
-        $this->executeWorkflow(isset($this->binded[$resource]), $loaded, $user, [$this->binded[$resource], "_onBind"], $required, $granted);    
-            
+        $this->executeWorkflow(isset($this->binded[$resource]), $loaded, $user, [$this->binded[$resource], "_onBind"], $required, $granted); 
         $this->executeWorkflow(null !== $bind, $loaded, $user, $bind, $required, $granted);
                     
         return $granted;
@@ -159,7 +158,7 @@ class Acl implements AclInterface
      * @param array[callable|null]|null $executable
      *   A callable
      * @param int $required
-     *   Required permission to perform actions
+     *   Required permissions to perform actions
      * @param bool $granted
      *   Setted to true if granted
      */
@@ -173,6 +172,7 @@ class Acl implements AclInterface
     {
         if(!$isExecutable)
             return;
+        
         $executables = \call_user_func($executable, $user, $granted);
         if(null === $executables || empty($executables))
             return;
@@ -207,7 +207,7 @@ class Acl implements AclInterface
      * @return Mask
      *   Mask permission
      */
-    private function initMaskPermission(UserInterface $user, ResourceInterface $resource, string $identifier, bool& $fromUser): Mask
+    private function initUserMaskPermission(UserInterface $user, ResourceInterface $resource, string $identifier, bool& $fromUser): Mask
     {
         try {
             $fromUser = true;     
@@ -222,23 +222,23 @@ class Acl implements AclInterface
     }
     
     /**
-     * Initialize a mask for a set of permissions over a resource.
+     * Initialize a mask over a resource.
      * 
      * @param ResourceInterface $resource
      *   Resource
      * @param array $permissions
-     *   Permissions to get the mask
+     *   Permissions to set into the mask
      * 
      * @return Mask
      *   Permissions mask
      */
-    private function getMaskMultiplePermissions(ResourceInterface $resource, array $permissions): Mask
+    private function initResourceMaskPermission(ResourceInterface $resource, array $permissions): Mask
     {
-        $stringified = \implode(",", $permissions);
-        
-        return $this->memoize(self::$determined, $stringified, function() use ($resource, $permissions) {
-            return $resource->getPermissions($permissions)->total();
-        });
+        return (\count($permissions) > 1) ? 
+            $this->memoize(self::$determined, \implode(",", $permissions), function() use ($resource, $permissions) {
+                return $resource->getPermissions($permissions)->total();
+            }) : 
+            $resource->getPermission($permissions[0]);
     }
     
     /**
