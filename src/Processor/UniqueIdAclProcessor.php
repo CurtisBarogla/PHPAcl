@@ -28,6 +28,8 @@ abstract class UniqueIdAclProcessor implements AclProcessorInterface
     use EntityAwareTrait;
     
     /**
+     * Can be overriden in concrete implementation for more specifics needs
+     * 
      * {@inheritDoc}
      * @see \Zoe\Component\Acl\Processor\AclProcessorInterface::process()
      */

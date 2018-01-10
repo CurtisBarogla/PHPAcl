@@ -38,7 +38,7 @@ interface EntityInterface extends \IteratorAggregate, \Countable
      *   Value name
      * 
      * @return array
-     *   All permission applied to this entity value
+     *   All permissions applied to this entity value
      *   
      * @throws EntityValueNotFoundException
      *   When the value is not registered
