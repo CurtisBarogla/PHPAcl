@@ -133,7 +133,7 @@ class Acl implements AclInterface
 
         $this->executeWorkflow(isset($this->binded[$resource]), $loaded, $user, [$this->binded[$resource], "_onBind"], $required, $granted); 
         $this->executeWorkflow(null !== $bind, $loaded, $user, $bind, $required, $granted);
-                    
+        
         return $granted;
     }
     
@@ -155,7 +155,7 @@ class Acl implements AclInterface
      *   Resource to link
      * @param AclUserInterface $user
      *   User to link
-     * @param array[callable|null]|null $executable
+     * @param array[callable|null]|callable|null $executable
      *   A callable
      * @param int $required
      *   Required permissions to perform actions
@@ -235,7 +235,7 @@ class Acl implements AclInterface
     private function initResourceMaskPermission(ResourceInterface $resource, array $permissions): Mask
     {
         return (\count($permissions) > 1) ? 
-            $this->memoize(self::$determined, \implode(",", $permissions), function() use ($resource, $permissions) {
+            $this->memoize(self::$determined, $resource->getName()."_".\implode(",", $permissions), function() use ($resource, $permissions): Mask {
                 return $resource->getPermissions($permissions)->total();
             }) : 
             $resource->getPermission($permissions[0]);

@@ -80,6 +80,7 @@ class AclTest extends TestCase
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->once())->method("getPermission")->with("FooPermission")->will($this->returnValue($fooPermission));
         $resource->expects($this->once())->method("getPermissions")->with(["BarPermission", "PozPermission"])->will($this->returnValue($collectionBarPoz));
+        $resource->expects($this->exactly(2))->method("getName")->will($this->returnValue("Foo"));
         $loader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
         $loader->expects($this->once())->method("load")->with("Foo_1")->will($this->returnValue($resource));
         
