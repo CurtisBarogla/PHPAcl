@@ -22,7 +22,7 @@ use Zoe\Component\Acl\Resource\Resource;
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-class JsonCacheFormatStrategy implements CacheFormatStrategyInterface
+class JsonCacheFormat implements CacheFormatInterface
 {
     
     /**
@@ -30,7 +30,7 @@ class JsonCacheFormatStrategy implements CacheFormatStrategyInterface
      *   When given resource does not implement JsonRestorableInterface
      * 
      * {@inheritDoc}
-     * @see \Zoe\Component\Acl\Loader\Cache\CacheFormatStrategyInterface::processSetting()
+     * @see \Zoe\Component\Acl\Loader\Cache\CacheFormatInterface::processSetting()
      */
     public function processSetting(ResourceInterface $resource): string
     {
@@ -43,7 +43,7 @@ class JsonCacheFormatStrategy implements CacheFormatStrategyInterface
 
     /**
      * {@inheritDoc}
-     * @see \Zoe\Component\Acl\Loader\Cache\CacheFormatStrategyInterface::processGetting()
+     * @see \Zoe\Component\Acl\Loader\Cache\CacheFormatInterface::processGetting()
      */
     public function processGetting(string $resource): ResourceInterface
     {

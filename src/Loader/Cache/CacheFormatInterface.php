@@ -20,7 +20,7 @@ use Zoe\Component\Acl\Resource\ResourceInterface;
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-interface CacheFormatStrategyInterface
+interface CacheFormatInterface
 {
     
     /**

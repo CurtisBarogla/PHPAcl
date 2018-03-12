@@ -20,12 +20,12 @@ use Zoe\Component\Acl\Resource\ResourceInterface;
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-class NativeSerializeCacheFormatStrategy implements CacheFormatStrategyInterface
+class NativeSerializeCacheFormat implements CacheFormatInterface
 {
     
     /**
      * {@inheritDoc}
-     * @see \Zoe\Component\Acl\Loader\Cache\CacheFormatStrategyInterface::processSetting()
+     * @see \Zoe\Component\Acl\Loader\Cache\CacheFormatInterface::processSetting()
      */
     public function processSetting(ResourceInterface $resource): string
     {
@@ -34,7 +34,7 @@ class NativeSerializeCacheFormatStrategy implements CacheFormatStrategyInterface
 
     /**
      * {@inheritDoc}
-     * @see \Zoe\Component\Acl\Loader\Cache\CacheFormatStrategyInterface::processGetting()
+     * @see \Zoe\Component\Acl\Loader\Cache\CacheFormatInterface::processGetting()
      */
     public function processGetting(string $resource): ResourceInterface
     {
