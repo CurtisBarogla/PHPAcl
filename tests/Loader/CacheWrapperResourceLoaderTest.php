@@ -13,10 +13,10 @@ declare(strict_types = 1);
 namespace ZoeTest\Component\Acl\Loader;
 
 use PHPUnit\Framework\TestCase;
-use Zoe\Component\Acl\Loader\ResourceLoaderInterface;
-use Zoe\Component\Acl\Loader\Cache\CacheFormatStrategyInterface;
 use Psr\SimpleCache\CacheInterface;
 use Zoe\Component\Acl\Loader\CacheWrapperResourceLoader;
+use Zoe\Component\Acl\Loader\ResourceLoaderInterface;
+use Zoe\Component\Acl\Loader\Cache\CacheFormatInterface;
 use Zoe\Component\Acl\Resource\ResourceInterface;
 
 /**
@@ -40,7 +40,7 @@ class CacheWrapperResourceLoaderTest extends TestCase
         $wrapped = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
         $wrapped->expects($this->never())->method("load");
         
-        $format = $this->getMockBuilder(CacheFormatStrategyInterface::class)->getMock();
+        $format = $this->getMockBuilder(CacheFormatInterface::class)->getMock();
         $format->expects($this->never())->method("processSetting");
         $format->expects($this->once())->method("processGetting")->with("FooNormalizedResource")->will($this->returnValue($resourceFromCache));
         
@@ -56,6 +56,29 @@ class CacheWrapperResourceLoaderTest extends TestCase
     /**
      * @see \Zoe\Component\Acl\Loader\CacheWrapperResourceLoader::load()
      */
+    public function testLoadWhenCachedWithInteractionWithSerializedValueFromPSRCacheImplementation(): void
+    {
+        $resourceLoaded = $this->getMockBuilder(ResourceInterface::class)->getMock();
+        
+        $wrapped = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
+        $wrapped->expects($this->never())->method("load");
+        
+        $format = $this->getMockBuilder(CacheFormatInterface::class)->getMock();
+        $format->expects($this->never())->method("processSetting");
+        $format->expects($this->never())->method("processGetting");
+        
+        $cache = $this->getMockBuilder(CacheInterface::class)->getMock();
+        $cache->expects($this->never())->method("set");
+        $cache->expects($this->once())->method("get")->with(CacheWrapperResourceLoader::CACHE_LOADER_PREFIX."Foo")->will($this->returnValue($resourceLoaded));
+        
+        $loader = new CacheWrapperResourceLoader($wrapped, $cache, $format);
+        
+        $this->assertSame($resourceLoaded, $loader->load("Foo"));
+    }
+    
+    /**
+     * @see \Zoe\Component\Acl\Loader\CacheWrapperResourceLoader::load()
+     */
     public function testLoadWhenNotCached(): void
     {
         $resourceFromWrappedLoaded = $this->getMockBuilder(ResourceInterface::class)->getMock();
@@ -63,7 +86,7 @@ class CacheWrapperResourceLoaderTest extends TestCase
         $wrapped = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
         $wrapped->expects($this->once())->method("load")->with("Foo")->will($this->returnValue($resourceFromWrappedLoaded));
         
-        $format = $this->getMockBuilder(CacheFormatStrategyInterface::class)->getMock();
+        $format = $this->getMockBuilder(CacheFormatInterface::class)->getMock();
         $format->expects($this->never())->method("processGetting");
         $format->expects($this->once())->method("processSetting")->with($resourceFromWrappedLoaded)->will($this->returnValue("FooNormalizedResource"));
         
@@ -82,7 +105,7 @@ class CacheWrapperResourceLoaderTest extends TestCase
     public function testGetCache(): void
     {
         $wrapped = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
-        $format = $this->getMockBuilder(CacheFormatStrategyInterface::class)->getMock();
+        $format = $this->getMockBuilder(CacheFormatInterface::class)->getMock();
         $cache = $this->getMockBuilder(CacheInterface::class)->getMock();
 
         $loader = new CacheWrapperResourceLoader($wrapped, $cache, $format);

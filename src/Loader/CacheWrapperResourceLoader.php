@@ -12,9 +12,9 @@ declare(strict_types = 1);
 
 namespace Zoe\Component\Acl\Loader;
 
-use Zoe\Component\Acl\Resource\ResourceInterface;
 use Psr\SimpleCache\CacheInterface;
-use Zoe\Component\Acl\Loader\Cache\CacheFormatStrategyInterface;
+use Zoe\Component\Acl\Loader\Cache\CacheFormatInterface;
+use Zoe\Component\Acl\Resource\ResourceInterface;
 
 /**
  * Wrapper around a resource loader to get a resource from a cache
@@ -42,7 +42,7 @@ class CacheWrapperResourceLoader implements ResourceLoaderInterface
     /**
      * Format strategy used
      * 
-     * @var CacheFormatStrategyInterface
+     * @var CacheFormatInterface
      */
     private $format;
     
@@ -60,10 +60,10 @@ class CacheWrapperResourceLoader implements ResourceLoaderInterface
      *   Loader implementation to wrap
      * @param CacheInterface $cache
      *   PSR-16 Cache implementation
-     * @param CacheFormatStrategyInterface $format
+     * @param CacheFormatInterface $format
      *   Cache format used
      */
-    public function __construct(ResourceLoaderInterface $loader, CacheInterface $cache, CacheFormatStrategyInterface $format)
+    public function __construct(ResourceLoaderInterface $loader, CacheInterface $cache, CacheFormatInterface $format)
     {
         $this->loader = $loader;
         $this->cache = $cache;
@@ -82,7 +82,7 @@ class CacheWrapperResourceLoader implements ResourceLoaderInterface
             
             return $loaded;
         } else {
-            return $this->format->processGetting($cache);
+            return ($cache instanceof ResourceInterface) ? $cache : $this->format->processGetting($cache);
         }
     }
     
