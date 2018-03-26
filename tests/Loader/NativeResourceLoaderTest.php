@@ -71,9 +71,10 @@ class NativeResourceLoaderTest extends TestCase
     public function testExceptionLoadWhenResourceFileDoesNotReturnAResourceInterface(): void
     {
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage("This acl resource file '/home/algorab/Framework/Acl/tests/Loader/../Fixture/Loader/native/Invalid.php' MUST return a ResourceInterface");
+        $path = __DIR__."/../Fixture/Loader/native/Invalid.php";
+        $this->expectExceptionMessage("This acl resource file '{$path}' MUST return a ResourceInterface");
         
-        $loader = new NativeResourceLoader([__DIR__."/../Fixture/Loader/native/Invalid.php"]);
+        $loader = new NativeResourceLoader([$path]);
         $loader->load("Invalid");
     }
     
