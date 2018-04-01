@@ -70,9 +70,13 @@ class EntityTest extends TestCase
     public function testGet(): void
     {
         $entity = new Entity("Foo");
-        $entity->add("Foo", ["Foo", "Bar"]);
+        $entity->add("Foo", ["perm1", "perm2"]);
+        $entity->add("Bar", ["Foo", "perm3"]);
+        $entity->add("Moz", ["perm1", "Foo", "perm3", "Bar", "perm4"]);
         
-        $this->assertSame(["Foo", "Bar"], $entity->get("Foo"));
+        $this->assertSame(["perm1", "perm2"], $entity->get("Foo"));
+        $this->assertSame(["perm1", "perm2", "perm3"], $entity->get("Bar"));
+        $this->assertSame(["perm1", "perm2", "perm3", "perm4"], $entity->get("Moz"));
     }
     
     /**

@@ -85,11 +85,21 @@ class Entity implements EntityInterface, JsonRestorableInterface
      * @param string $value
      *   Entity value
      * @param array $permissions
-     *   Permissions applied to this value. No verification are done over the setted permissions on this implementation. So be careful
+     *   Permissions applied to this value. No verification are done over the setted permissions on this implementation. So be careful.
+     *   This implementation allows parent declaration
      */
     public function add(string $value, array $permissions): void
     {
-        $this->values[$value] = $permissions;
+        $toSet = [];
+        foreach ($permissions as $permission) {
+            try {
+                $toSet = \array_merge($toSet, $this->get($permission));    
+            } catch (EntityValueNotFoundException $e) {
+                $toSet[] = $permission;
+            }
+        }
+        
+        $this->values[$value] = \array_values(\array_unique($toSet));
     }
     
     /**
@@ -99,12 +109,12 @@ class Entity implements EntityInterface, JsonRestorableInterface
     public function get(string $value): array
     {
         if(!isset($this->values[$value])) {
-            $expection = new EntityValueNotFoundException(\sprintf("This value '%s' is not registered into entity '%s'",
+            $exception = new EntityValueNotFoundException(\sprintf("This value '%s' is not registered into entity '%s'",
                 $value,
                 $this->name));
-            $expection->setInvalidValue($value);
+            $exception->setInvalidValue($value);
             
-            throw $expection;
+            throw $exception;
         }
             
         return $this->values[$value];
