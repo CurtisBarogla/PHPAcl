@@ -220,10 +220,10 @@ class Resource implements ResourceInterface
     {
         switch ($type = \gettype($permissions)) {
             case "string":
-                $this->{$property} = $this->getPermission($permissions);
+                $this->{$property} |= $this->getPermission($permissions);
                 break;
             case "array":
-                $this->{$property} = $this->getPermissions($permissions);
+                $this->{$property} |= $this->getPermissions($permissions);
                 break;
             default:
                 throw new \TypeError("Permissions MUST be either an array or a string. {$type} given");

@@ -125,7 +125,7 @@ class ResourceTest extends TestCase
     {
         $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
         $user->expects($this->once())->method("getPermission");
-        $user->expects($this->once())->method("setPermission")->with(3)->will($this->returnValue(null));
+        $user->expects($this->once())->method("setPermission")->with(1)->will($this->returnValue(null));
         
         $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
         $reflection = new \ReflectionClass($resource);
@@ -134,12 +134,12 @@ class ResourceTest extends TestCase
         $resource->add("bar");
         $resource->add("moz");
         
-        $resource->grant(["foo", "bar"])->deny("moz");
+        $current = $resource->grant(["foo", "bar"])->grant("moz")->deny("moz")->deny("bar");
         
-        $this->assertSame(3, $this->reflection_getPropertyValue($resource, $reflection, "grant"));
-        $this->assertSame(4, $this->reflection_getPropertyValue($resource, $reflection, "deny"));
+        $this->assertSame(7, $this->reflection_getPropertyValue($resource, $reflection, "grant"));
+        $this->assertSame(6, $this->reflection_getPropertyValue($resource, $reflection, "deny"));
         
-        $this->assertNull($resource->grant(["foo", "bar"])->to($user));
+        $this->assertNull($current->to($user));
         
         $this->assertSame(0, $this->reflection_getPropertyValue($resource, $reflection, "grant"));
         $this->assertSame(0, $this->reflection_getPropertyValue($resource, $reflection, "deny"));
