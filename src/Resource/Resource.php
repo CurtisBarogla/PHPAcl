@@ -149,6 +149,9 @@ class Resource implements ResourceInterface
      */
     public function getPermissions(array $permissions): int
     {
+        if(empty($permissions))
+            return 0;
+        
         $value = 1;
         foreach ($permissions as $permission) {
             $value |= $this->getPermission($permission);
@@ -198,7 +201,7 @@ class Resource implements ResourceInterface
             $this->permissions[$permission] = ($setted = 1 << $current - \count(self::RESERVED_PERMISSIONS));
             $this->permissions[self::ALL_PERMISSIONS] += $setted;            
         } catch (\ArithmeticError $e) {
-            throw new \LogicException("Cannot set this permission '{$permission}' bit value. Did you forget to initialize a reserved permission ?");
+            throw new \LogicException("Cannot set this permission '{$permission}' value. Did you forget to initialize a reserved permission ?");
         }
         
         return $this;

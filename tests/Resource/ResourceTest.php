@@ -172,6 +172,7 @@ class ResourceTest extends TestCase
         
         $this->assertSame(3, $resource->getPermissions(["foo", "bar"]));
         $this->assertSame(7, $resource->getPermissions(["all", "foo"]));
+        $this->assertSame(0, $resource->getPermissions([]));
     }
     
     /**
@@ -333,7 +334,7 @@ class ResourceTest extends TestCase
     public function testExceptionAddWhenAReservedPermissionIsNotInitialized(): void
     {
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage("Cannot set this permission 'foo' bit value. Did you forget to initialize a reserved permission ?");
+        $this->expectExceptionMessage("Cannot set this permission 'foo' value. Did you forget to initialize a reserved permission ?");
         
         $resource = new ResourceFixture("Foo", ResourceInterface::BLACKLIST);
         
