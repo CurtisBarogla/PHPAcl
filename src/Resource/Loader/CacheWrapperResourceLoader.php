@@ -13,6 +13,7 @@ declare(strict_types = 1);
 namespace Zoe\Component\Acl\Resource\Loader;
 
 use Psr\SimpleCache\CacheInterface;
+use Zoe\Component\Acl\Resource\ResourceCollectionInterface;
 use Zoe\Component\Acl\Resource\ResourceInterface;
 
 /**
@@ -69,16 +70,16 @@ class CacheWrapperResourceLoader implements ResourceLoaderInterface
      */
     public function load(string $resource): ResourceInterface
     {
-        $key = self::ACL_CACHE_WRAPPER_RESOURCE_KEY."_{$resource}";
-        if( ($loaded = $this->cache->get($key, null)) === null) {
-            $loaded = $this->loader->load($resource);
-            
-            $this->cache->set($key, $loaded);
-            
-            return $loaded;
-        } else {
-            return $loaded;
-        }
+        return $this->get($resource, false);
+    }
+    
+    /**
+     * {@inheritDoc}
+     * @see \Zoe\Component\Acl\Resource\Loader\ResourceLoaderInterface::loadCollection()
+     */
+    public function loadCollection(string $collection): ResourceCollectionInterface
+    {
+        return $this->get($collection, true);
     }
     
     /**
@@ -104,6 +105,33 @@ class CacheWrapperResourceLoader implements ResourceLoaderInterface
     public function getCache(): CacheInterface
     {
         return $this->cache;
+    }
+
+    /**
+     * Load a resource/collection from a cached one.
+     * Set it into setted cache implementation
+     * 
+     * @param string $resource
+     *   Resource/Collection name
+     * @param bool $collection
+     *   If resource to load is a collection of resources
+     * 
+     * @return ResourceInterface|ResourceCollectionInterface
+     *   Resource or collection
+     */
+    private function get(string $resource, bool $collection)
+    {
+        $key = self::ACL_CACHE_WRAPPER_RESOURCE_KEY."_{$resource}";
+        if( ($loaded = $this->cache->get($key, null)) === null ) {
+            $action = ($collection) ? "loadCollection" : "load";
+            $loaded = $this->loader->{$action}($resource);
+            
+            $this->cache->set($key, $loaded);
+            
+            return $loaded;
+        } else {
+            return $loaded;
+        }
     }
     
 }
