@@ -14,6 +14,7 @@ namespace Zoe\Component\Acl\Resource\Loader;
 
 use Zoe\Component\Acl\Resource\ResourceInterface;
 use Zoe\Component\Acl\Exception\ResourceNotFoundException;
+use Zoe\Component\Acl\Resource\ResourceCollectionInterface;
 
 /**
  * Load resource from a set of PHP files returning a resource instance.
@@ -50,25 +51,16 @@ class NativeResourceLoader implements ResourceLoaderInterface
      */
     public function load(string $resource): ResourceInterface
     {
-        if( ($notRegistered = (!isset($this->files[$resource]))) || !\is_file($this->files[$resource]) ) {
-            $message = ($notRegistered) 
-                ? "This resource '{$resource}' cannot be loaded over '" . __CLASS__ . "' resource load as it is not registered into given files" 
-                : "This resource '{$resource}' cannot be loaded over '" . __CLASS__ . "' as given file : '{$this->files[$resource]}' does not exist";
-            
-            throw new ResourceNotFoundException($message);
-        }
-        
-        try {
-            $loaded = self::includeFile($this->files[$resource]);            
-        } catch (\TypeError $e) {
-            throw new ResourceNotFoundException("This file '{$this->files[$resource]}' MUST resource an instance of ResourceInterface");
-        }
-        
-        if($loaded->getName() !== $resource) {
-            throw new ResourceNotFoundException("Resource name '{$resource}' from file '{$this->files[$resource]}' from loaded resource '{$loaded->getName()}' does not correspond");
-        }
-        
-        return $loaded;
+        return $this->get($resource, ResourceInterface::class);
+    }
+    
+    /**
+     * {@inheritDoc}
+     * @see \Zoe\Component\Acl\Resource\Loader\ResourceLoaderInterface::loadCollection()
+     */
+    public function loadCollection(string $collection): ResourceCollectionInterface
+    {
+        return $this->get($collection, ResourceCollectionInterface::class);
     }
 
     /**
@@ -86,16 +78,84 @@ class NativeResourceLoader implements ResourceLoaderInterface
     }
     
     /**
+     * Check if a resource/collection is loadable
+     * 
+     * @param string $resource
+     *   Resource or collection name
+     * 
+     * @throws ResourceNotFoundException
+     *   If resource/collection cannot be loaded
+     */
+    private function check(string $resource): void
+    {
+        if( ($notRegistered = (!isset($this->files[$resource]))) || !\is_file($this->files[$resource]) ) {
+            $message = ($notRegistered)
+            ? "This resource/collection '{$resource}' cannot be loaded over '" . __CLASS__ . "' resource load as it is not registered into given files"
+            : "This resource/collection '{$resource}' cannot be loaded over '" . __CLASS__ . "' as given file : '{$this->files[$resource]}' does not exist";
+            
+            throw new ResourceNotFoundException($message);
+        }
+    }
+    
+    /**
+     * Check if the resource/collection name correspond to a valid type and if loaded resource/collection name correspond to the filename given
+     * 
+     * @param string $resource
+     *   Resource/Collection name which loaded resource/collection must correspond
+     * @param ResourceInterface|ResourceCollectionInterface $loaded
+     *   Resource/Collection loaded
+     * @param string $type
+     *   Type restricted
+     * 
+     * @throws ResourceNotFoundException
+     *   If a resource/collection does not correspond to the valid type or given filename does not correspond to loaded resource/collection
+     */
+    private function checkLoaded(string $resource, $loaded, string $type): void
+    {
+        if(!$loaded instanceof $type) {
+            throw new ResourceNotFoundException("This file '{$this->files[$resource]}' MUST resource an instance of '{$type}'");
+        }
+        
+        $name = ($loaded instanceof ResourceInterface) ? $loaded->getName() : $loaded->getIdentifier();
+        if($name !== $resource) {
+            throw new ResourceNotFoundException("Resource/Collection name '{$resource}' from file '{$this->files[$resource]}' from loaded resource/collection '{$name}' does not correspond");
+        }
+    }
+    
+    /**
+     * Process verifications and load a resource/collection
+     * 
+     * @param string $resource
+     *   Resource/collection
+     * @param string $type
+     *   Type restricted
+     *   
+     * @return ResourceInterface|ResourceCollectionInterface
+     *   Resource/Collection verified and loaded
+     */
+    private function get(string $resource, string $type)
+    {
+        $this->check($resource);
+        
+        $loaded = self::includeFile($this->files[$resource]);
+        
+        $this->checkLoaded($resource, $loaded, $type);
+        
+        return $loaded;
+    }
+    
+    /**
      * Include a file to prevent override of local variable and access to this
      * 
-     * @param string $file
+     * @param string $_file
      *   File name
      * 
-     * @return ResourceInterface
-     *   Resource representation
+     * @return ResourceInterface|ResourceCollectionInterface
+     *   Resource/ResourceCollection representation
      */
-    private static function includeFile(string $file): ResourceInterface
+    private static function includeFile(string $_file)
     {
-        return include $file;
+        return include $_file;
     }
+    
 }

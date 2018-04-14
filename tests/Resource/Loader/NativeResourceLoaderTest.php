@@ -33,14 +33,14 @@ class NativeResourceLoaderTest extends TestCase
      * 
      * @var string
      */
-    private const BASE_FIXTURE_DIRECTORY = __DIR__."/../../Fixtures/Resource/resource";
+    private const BASE_FIXTURE_DIRECTORY = __DIR__."/../../Fixtures/Resource";
     
     /**
      * @see \Zoe\Component\Acl\Resource\Loader\NativeResourceLoader::load()
      */
     public function testLoad(): void
     {
-        $base = self::BASE_FIXTURE_DIRECTORY . DIRECTORY_SEPARATOR . "valid";
+        $base = self::BASE_FIXTURE_DIRECTORY . DIRECTORY_SEPARATOR . "resource/valid";
         $files = ["{$base}/Foo.php", "{$base}/Bar.php"];
         
         $loader = new NativeResourceLoader($files);
@@ -57,6 +57,34 @@ class NativeResourceLoaderTest extends TestCase
         }
     }
     
+    /**
+     * @see \Zoe\Component\Acl\Resource\Loader\NativeResourceLoader::loadCollection()
+     */
+    public function testLoadCollection(): void
+    {
+        $base = self::BASE_FIXTURE_DIRECTORY . DIRECTORY_SEPARATOR . "collection/valid";
+        
+        $loader = new NativeResourceLoader(["{$base}/FooCollection.php"]);
+        
+        $collection = $loader->loadCollection("FooCollection");
+        
+        foreach ($collection as $name => $resource) {
+            $this->assertInstanceOf(ResourceInterface::class, $resource);
+            $this->assertSame(ResourceInterface::BLACKLIST, $resource->getBehaviour());
+            $this->assertSame(1, $resource->getPermission("foo"));
+            $this->assertSame(2, $resource->getPermission("bar"));
+            $this->assertSame(3, $resource->getPermission("all"));
+            switch ($name) {
+                case "Foo":
+                    $this->assertSame("Foo", $resource->getName());
+                    break;
+                case "Bar":
+                    $this->assertSame("Bar", $resource->getName());
+                    break;
+            }
+        }
+    }
+    
                     /**_____EXCEPTIONS_____**/
     
     /**
@@ -65,11 +93,24 @@ class NativeResourceLoaderTest extends TestCase
     public function testExceptionLoadWhenAResourceIsNotRegisteredIntoFileList(): void
     {
         $this->expectException(ResourceNotFoundException::class);
-        $this->expectExceptionMessage("This resource 'Foo' cannot be loaded over '" . NativeResourceLoader::class . "' resource load as it is not registered into given files");
+        $this->expectExceptionMessage("This resource/collection 'Foo' cannot be loaded over '" . NativeResourceLoader::class . "' resource load as it is not registered into given files");
         
         $loader = new NativeResourceLoader([]);
         
         $loader->load("Foo");
+    }
+    
+    /**
+     * @see \Zoe\Component\Acl\Resource\Loader\NativeResourceLoader::loadCollection()
+     */
+    public function testExceptionLoadCollectionWhenACollectionIsNotRegisteredIntoFileList(): void
+    {
+        $this->expectException(ResourceNotFoundException::class);
+        $this->expectExceptionMessage("This resource/collection 'FooCollection' cannot be loaded over '" . NativeResourceLoader::class . "' resource load as it is not registered into given files");
+        
+        $loader = new NativeResourceLoader([]);
+        
+        $loader->loadCollection("FooCollection");
     }
     
     /**
@@ -78,7 +119,7 @@ class NativeResourceLoaderTest extends TestCase
     public function testExceptionLoadWhenResourceIsRegisteredAndFileDoesNotExist(): void
     {
         $this->expectException(ResourceNotFoundException::class);
-        $this->expectExceptionMessage("This resource 'Foo' cannot be loaded over '" . NativeResourceLoader::class . "' as given file : '/foo/bar/Foo.php' does not exist");
+        $this->expectExceptionMessage("This resource/collection 'Foo' cannot be loaded over '" . NativeResourceLoader::class . "' as given file : '/foo/bar/Foo.php' does not exist");
         
         $loader = new NativeResourceLoader(["/foo/bar/Foo.php"]);
         
@@ -86,14 +127,27 @@ class NativeResourceLoaderTest extends TestCase
     }
     
     /**
+     * @see \Zoe\Component\Acl\Resource\Loader\NativeResourceLoader::loadCollection()
+     */
+    public function testExceptionLoadCollectionWhenCollectionIsRegisteredAndFileDoesNotExist(): void
+    {
+        $this->expectException(ResourceNotFoundException::class);
+        $this->expectExceptionMessage("This resource/collection 'FooCollection' cannot be loaded over '" . NativeResourceLoader::class . "' as given file : '/foo/bar/FooCollection.php' does not exist");
+        
+        $loader = new NativeResourceLoader(["/foo/bar/FooCollection.php"]);
+        
+        $loader->loadCollection("FooCollection");
+    }
+    
+    /**
      * @see \Zoe\Component\Acl\Resource\Loader\NativeResourceLoader::load()
      */
     public function testExceptionLoadWhenFileDoesNotReturnAnInstanceOfAResourceInterfaceImplementation(): void
     {
-        $file = self::BASE_FIXTURE_DIRECTORY."/invalid/Foo.php";
+        $file = self::BASE_FIXTURE_DIRECTORY."/resource/invalid/Foo.php";
         
         $this->expectException(ResourceNotFoundException::class);
-        $this->expectExceptionMessage("This file '{$file}' MUST resource an instance of ResourceInterface");
+        $this->expectExceptionMessage("This file '{$file}' MUST resource an instance of 'Zoe\Component\Acl\Resource\ResourceInterface'");
         
         $loader = new NativeResourceLoader([$file]);
         
@@ -101,18 +155,48 @@ class NativeResourceLoaderTest extends TestCase
     }
     
     /**
+     * @see \Zoe\Component\Acl\Resource\Loader\NativeResourceLoader::loadCollection()
+     */
+    public function testExceptionLoadCollectionWhenFileDoesNotReturnAnInstanceOfAResourceCollectionInterfaceImplementation(): void
+    {
+        $file = self::BASE_FIXTURE_DIRECTORY."/collection/invalid/FooCollection.php";
+        
+        $this->expectException(ResourceNotFoundException::class);
+        $this->expectExceptionMessage("This file '{$file}' MUST resource an instance of 'Zoe\Component\Acl\Resource\ResourceCollectionInterface'");
+        
+        $loader = new NativeResourceLoader([$file]);
+        
+        $loader->loadCollection("FooCollection");
+    }
+    
+    /**
      * @see \Zoe\Component\Acl\Resource\Loader\NativeResourceLoader::load()
      */
     public function testExceptionLoadWhenResourceNameDoesNotCorrespondToGivenFilenameOne(): void
     {
-        $file = self::BASE_FIXTURE_DIRECTORY."/invalid/Bar.php";
+        $file = self::BASE_FIXTURE_DIRECTORY."/resource/invalid/Bar.php";
         
         $this->expectException(ResourceNotFoundException::class);
-        $this->expectExceptionMessage("Resource name 'Bar' from file '{$file}' from loaded resource 'Foo' does not correspond");
+        $this->expectExceptionMessage("Resource/Collection name 'Bar' from file '{$file}' from loaded resource/collection 'Foo' does not correspond");
         
         $loader = new NativeResourceLoader([$file]);
         
         $loader->load("Bar");
+    }
+    
+    /**
+     * @see \Zoe\Component\Acl\Resource\Loader\NativeResourceLoader::loadCollection()
+     */
+    public function testExceptionLoadCollectionWhenResourceCollectionNameDoesNotCorrespondToGivenFilenameOne(): void
+    {
+        $file = self::BASE_FIXTURE_DIRECTORY."/collection/invalid/BarCollection.php";
+        
+        $this->expectException(ResourceNotFoundException::class);
+        $this->expectExceptionMessage("Resource/Collection name 'BarCollection' from file '{$file}' from loaded resource/collection 'FooCollection' does not correspond");
+        
+        $loader = new NativeResourceLoader([$file]);
+        
+        $loader->loadCollection("BarCollection");
     }
     
 }
