@@ -14,6 +14,8 @@ namespace Zoe\Component\Acl\Resource\Loader;
 
 use Zoe\Component\Acl\Resource\ResourceInterface;
 use Zoe\Component\Acl\Exception\ResourceNotFoundException;
+use Zoe\Component\Acl\Resource\ResourceCollection;
+use Zoe\Component\Acl\Resource\ResourceCollectionInterface;
 
 /**
  * Responsible to load a resource from varios format
@@ -37,5 +39,19 @@ interface ResourceLoaderInterface
      *   When no resource correspond to a loadable one
      */
     public function load(string $resource): ResourceInterface;
+    
+    /**
+     * Load a resources collection 
+     * 
+     * @param string $collection
+     *   Collection name
+     *   
+     * @return ResourceCollection
+     *   The entire collection
+     *   
+     * @throws ResourceNotFoundException
+     *   If the collection cannot be loaded
+     */
+    public function loadCollection(string $collection): ResourceCollectionInterface;
     
 }
