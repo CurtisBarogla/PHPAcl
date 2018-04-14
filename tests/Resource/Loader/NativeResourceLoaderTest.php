@@ -40,7 +40,7 @@ class NativeResourceLoaderTest extends TestCase
      */
     public function testLoad(): void
     {
-        $base = self::BASE_FIXTURE_DIRECTORY . DIRECTORY_SEPARATOR . "resource/valid";
+        $base = self::BASE_FIXTURE_DIRECTORY . DIRECTORY_SEPARATOR . "resource/native/valid";
         $files = ["{$base}/Foo.php", "{$base}/Bar.php"];
         
         $loader = new NativeResourceLoader($files);
@@ -62,7 +62,7 @@ class NativeResourceLoaderTest extends TestCase
      */
     public function testLoadCollection(): void
     {
-        $base = self::BASE_FIXTURE_DIRECTORY . DIRECTORY_SEPARATOR . "collection/valid";
+        $base = self::BASE_FIXTURE_DIRECTORY . DIRECTORY_SEPARATOR . "collection/native/valid";
         
         $loader = new NativeResourceLoader(["{$base}/FooCollection.php"]);
         
@@ -144,7 +144,7 @@ class NativeResourceLoaderTest extends TestCase
      */
     public function testExceptionLoadWhenFileDoesNotReturnAnInstanceOfAResourceInterfaceImplementation(): void
     {
-        $file = self::BASE_FIXTURE_DIRECTORY."/resource/invalid/Foo.php";
+        $file = self::BASE_FIXTURE_DIRECTORY."/resource/native/invalid/Foo.php";
         
         $this->expectException(ResourceNotFoundException::class);
         $this->expectExceptionMessage("This file '{$file}' MUST resource an instance of 'Zoe\Component\Acl\Resource\ResourceInterface'");
@@ -159,7 +159,7 @@ class NativeResourceLoaderTest extends TestCase
      */
     public function testExceptionLoadCollectionWhenFileDoesNotReturnAnInstanceOfAResourceCollectionInterfaceImplementation(): void
     {
-        $file = self::BASE_FIXTURE_DIRECTORY."/collection/invalid/FooCollection.php";
+        $file = self::BASE_FIXTURE_DIRECTORY."/collection/native/invalid/FooCollection.php";
         
         $this->expectException(ResourceNotFoundException::class);
         $this->expectExceptionMessage("This file '{$file}' MUST resource an instance of 'Zoe\Component\Acl\Resource\ResourceCollectionInterface'");
@@ -174,7 +174,7 @@ class NativeResourceLoaderTest extends TestCase
      */
     public function testExceptionLoadWhenResourceNameDoesNotCorrespondToGivenFilenameOne(): void
     {
-        $file = self::BASE_FIXTURE_DIRECTORY."/resource/invalid/Bar.php";
+        $file = self::BASE_FIXTURE_DIRECTORY."/resource/native/invalid/Bar.php";
         
         $this->expectException(ResourceNotFoundException::class);
         $this->expectExceptionMessage("Resource/Collection name 'Bar' from file '{$file}' from loaded resource/collection 'Foo' does not correspond");
@@ -189,7 +189,7 @@ class NativeResourceLoaderTest extends TestCase
      */
     public function testExceptionLoadCollectionWhenResourceCollectionNameDoesNotCorrespondToGivenFilenameOne(): void
     {
-        $file = self::BASE_FIXTURE_DIRECTORY."/collection/invalid/BarCollection.php";
+        $file = self::BASE_FIXTURE_DIRECTORY."/collection/native/invalid/BarCollection.php";
         
         $this->expectException(ResourceNotFoundException::class);
         $this->expectExceptionMessage("Resource/Collection name 'BarCollection' from file '{$file}' from loaded resource/collection 'FooCollection' does not correspond");
