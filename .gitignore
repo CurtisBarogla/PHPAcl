@@ -7,3 +7,4 @@ coverage/
 index.php
 auth.json
 todo.md
+fixtures/
