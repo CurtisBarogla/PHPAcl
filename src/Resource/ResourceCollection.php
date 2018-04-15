@@ -98,7 +98,7 @@ class ResourceCollection implements ResourceCollectionInterface
     }
     
     /**
-     * Initialize a new resource collection with shared permissions among all registered resource.
+     * Initialize a new resource collection with shared permissions among all registered resources.
      * 
      * @param string $name
      *   Collection name
@@ -124,7 +124,7 @@ class ResourceCollection implements ResourceCollectionInterface
                 throw new \InvalidArgumentException("Resource collection " . self::class . " only accept instances of " . Resource::class);
             foreach ($sharedPermissions as $sharedPermission) {
                 try {
-                    $resource->add($sharedPermission);                                        
+                    $resource->addPermission($sharedPermission);                                        
                 } catch (InvalidPermissionException $e) {
                     continue;
                 }

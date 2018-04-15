@@ -64,9 +64,9 @@ class ResourceTest extends TestCase
         $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
         
         $reflection = new \ReflectionClass($resource);
-        $resource->add("foo");
-        $resource->add("bar");
-        $resource->add("moz");
+        $resource->addPermission("foo");
+        $resource->addPermission("bar");
+        $resource->addPermission("moz");
         
         $this->assertSame($resource, $resource->grant("foo")->grant(["bar", "moz"]));
         
@@ -77,9 +77,9 @@ class ResourceTest extends TestCase
         $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
         
         $reflection = new \ReflectionClass($resource);
-        $resource->add("foo");
-        $resource->add("bar");
-        $resource->add("moz");
+        $resource->addPermission("foo");
+        $resource->addPermission("bar");
+        $resource->addPermission("moz");
         
         $this->assertSame($resource, $resource->grant("all"));
         
@@ -95,9 +95,9 @@ class ResourceTest extends TestCase
         $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
         
         $reflection = new \ReflectionClass($resource);
-        $resource->add("foo");
-        $resource->add("bar");
-        $resource->add("moz");
+        $resource->addPermission("foo");
+        $resource->addPermission("bar");
+        $resource->addPermission("moz");
         
         $this->assertSame($resource, $resource->deny("foo")->deny(["bar", "moz"]));
         
@@ -108,9 +108,9 @@ class ResourceTest extends TestCase
         $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
         
         $reflection = new \ReflectionClass($resource);
-        $resource->add("foo");
-        $resource->add("bar");
-        $resource->add("moz");
+        $resource->addPermission("foo");
+        $resource->addPermission("bar");
+        $resource->addPermission("moz");
         
         $this->assertSame($resource, $resource->deny("all"));
         
@@ -130,9 +130,9 @@ class ResourceTest extends TestCase
         $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
         $reflection = new \ReflectionClass($resource);
         
-        $resource->add("foo");
-        $resource->add("bar");
-        $resource->add("moz");
+        $resource->addPermission("foo");
+        $resource->addPermission("bar");
+        $resource->addPermission("moz");
         
         $current = $resource->grant(["foo", "bar"])->grant("moz")->deny("moz")->deny("bar");
         
@@ -152,8 +152,8 @@ class ResourceTest extends TestCase
     {
         $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
         
-        $resource->add("foo");
-        $resource->add("bar");
+        $resource->addPermission("foo");
+        $resource->addPermission("bar");
         
         $this->assertSame(1, $resource->getPermission("foo"));
         $this->assertSame(3, $resource->getPermission("all"));
@@ -166,9 +166,9 @@ class ResourceTest extends TestCase
     {
         $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
         
-        $resource->add("foo");
-        $resource->add("bar");
-        $resource->add("moz");
+        $resource->addPermission("foo");
+        $resource->addPermission("bar");
+        $resource->addPermission("moz");
         
         $this->assertSame(3, $resource->getPermissions(["foo", "bar"]));
         $this->assertSame(7, $resource->getPermissions(["all", "foo"]));
@@ -176,13 +176,13 @@ class ResourceTest extends TestCase
     }
     
     /**
-     * @see \Zoe\Component\Acl\Resource\Resource::add()
+     * @see \Zoe\Component\Acl\Resource\Resource::addPermission()
      */
-    public function testAdd(): void
+    public function testAddPermission(): void
     {
         $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
         
-        $this->assertSame($resource, $resource->add("foo")->add("bar"));
+        $this->assertSame($resource, $resource->addPermission("foo")->addPermission("bar"));
     }
     
                     /**_____EXCEPTIONS_____**/
@@ -214,7 +214,7 @@ class ResourceTest extends TestCase
     }
     
     /**
-     * @see \Zoe\Component\Acl\Resource\Resource::add()
+     * @see \Zoe\Component\Acl\Resource\Resource::addPermission()
      */    
     public function testExceptionGrantInvalidTypePermission(): void
     {
@@ -249,7 +249,7 @@ class ResourceTest extends TestCase
         
         $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
         
-        $resource->add("foo");
+        $resource->addPermission("foo");
         
         $resource->getPermission("bar");
     }
@@ -264,29 +264,29 @@ class ResourceTest extends TestCase
         
         $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
         
-        $resource->add("foo");
-        $resource->add("bar");
+        $resource->addPermission("foo");
+        $resource->addPermission("bar");
         
         $resource->getPermissions(["bar", "moz"]);
     }
     
     /**
-     * @see \Zoe\Component\Acl\Resource\Resource::add()
+     * @see \Zoe\Component\Acl\Resource\Resource::addPermission()
      */
-    public function testExceptionAddWhenInvalidPermissionIsAdded(): void
+    public function testExceptionAddPermissionWhenInvalidPermissionIsAdded(): void
     {
         $this->expectException(InvalidPermissionException::class);
         $this->expectExceptionMessage("This permission 'Foo' does not respest pattern [a-z_]");
         
         $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
         
-        $resource->add("Foo");
+        $resource->addPermission("Foo");
     }
     
     /**
-     * @see \Zoe\Component\Acl\Resource\Resource::add()
+     * @see \Zoe\Component\Acl\Resource\Resource::addPermission()
      */
-    public function testExceptionAddWhenReservedPermissionIsGiven(): void
+    public function testExceptionAddPermissionWhenReservedPermissionIsGiven(): void
     {
         $permission = \array_rand(ResourceInterface::RESERVED_PERMISSIONS, 1);
         $permission = ResourceInterface::RESERVED_PERMISSIONS[$permission];
@@ -296,26 +296,26 @@ class ResourceTest extends TestCase
         
         $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
         
-        $resource->add($permission);
+        $resource->addPermission($permission);
     }
     
     /**
-     * @see \Zoe\Component\Acl\Resource\Resource::add()
+     * @see \Zoe\Component\Acl\Resource\Resource::addPermission()
      */
-    public function testExceptionAddWhenAlreadyRegisteredPermissionIsGiven(): void
+    public function testExceptionAddPermissionWhenAlreadyRegisteredPermissionIsGiven(): void
     {
         $this->expectException(InvalidPermissionException::class);
         $this->expectExceptionMessage("This permission 'foo' cannot be added as it is already registered into resource 'Foo'");
         
         $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
         
-        $resource->add("foo")->add("foo");
+        $resource->addPermission("foo")->addPermission("foo");
     }
     
     /**
-     * @see \Zoe\Component\Acl\Resource\Resource::add()
+     * @see \Zoe\Component\Acl\Resource\Resource::addPermission()
      */
-    public function testExceptionAddWhenMaxPermissionCountIsReached(): void
+    public function testExceptionAddPermissionWhenMaxPermissionCountIsReached(): void
     {
         $max = ResourceInterface::MAX_PERMISSIONS;
         $this->expectException(\LogicException::class);
@@ -324,21 +324,21 @@ class ResourceTest extends TestCase
         $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
         
         for ($i = 'aa'; $i < 'zz'; $i++) {
-            $resource->add($i);
+            $resource->addPermission($i);
         }
     }
     
     /**
-     * @see \Zoe\Component\Acl\Resource\Resource::add()
+     * @see \Zoe\Component\Acl\Resource\Resource::addPermission()
      */
-    public function testExceptionAddWhenAReservedPermissionIsNotInitialized(): void
+    public function testExceptionAddPermissionWhenAReservedPermissionIsNotInitialized(): void
     {
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage("Cannot set this permission 'foo' value. Did you forget to initialize a reserved permission ?");
         
         $resource = new ResourceFixture("Foo", ResourceInterface::BLACKLIST);
         
-        $resource->add("foo");
+        $resource->addPermission("foo");
     }
     
 }

@@ -96,7 +96,7 @@ class ResourceCollectionTest extends TestCase
     {
         $resourceFoo = $this->getMockBuilder(Resource::class)->disableOriginalConstructor()->getMock();
         $resourceFoo
-            ->expects($this->exactly(5))->method("add")
+            ->expects($this->exactly(5))->method("addPermission")
             ->withConsecutive(["moz"], ["foo"], ["bar"], ["moz"], ["poz"])
             ->will($this->onConsecutiveCalls(
                 $resourceFoo, 
@@ -104,7 +104,7 @@ class ResourceCollectionTest extends TestCase
                 $resourceFoo, 
                 $this->throwException(new InvalidPermissionException()), 
                 $resourceFoo));
-        $resourceFoo->add("moz");
+        $resourceFoo->addPermission("moz");
         $resourceFoo->expects($this->once())->method("getName")->will($this->returnValue("Foo"));
         
         $collection = ResourceCollection::initializeCollection("Foo", [$resourceFoo], ["foo", "bar", "moz", "poz"]);

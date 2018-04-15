@@ -61,6 +61,13 @@ class Resource implements ResourceInterface
     protected $permissions;
     
     /**
+     * Entries registered
+     * 
+     * @var array[]
+     */
+    protected $entries;
+    
+    /**
      * Initialize a resource
      * 
      * @param string $name
@@ -174,7 +181,7 @@ class Resource implements ResourceInterface
      * @throws \LogicException
      *   When max permissions count is reached or a reserved permission is not initialized
      */
-    public function add(string $permission): self
+    public function addPermission(string $permission): self
     {
         $current = \count($this->permissions);
 
