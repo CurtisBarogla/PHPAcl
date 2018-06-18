@@ -13,7 +13,7 @@
     </php>
 
     <testsuites>
-        <testsuite name="Zoe - Acl Component Tests">
+        <testsuite name="Ness - Acl Component Tests">
             <directory>./tests</directory>
         </testsuite>
     </testsuites>

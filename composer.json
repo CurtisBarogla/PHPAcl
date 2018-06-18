@@ -1,6 +1,6 @@
 {
-	"name" : "barogla/acl",
-	"description" : "Acl Component - Zoe",
+	"name" : "ness/acl",
+	"description" : "Acl Component - Ness",
 	"type" : "library",
 	"license" : "MIT",
 	"authors" : [{
@@ -14,29 +14,24 @@
 	"minimum-stability" : "stable",
 	"require" : {
 		"php" : ">= 7.1",
-		"barogla/user" : "dev-master"
-	},
-	"require-dev" : {
-		"barogla/internal" : "dev-master"
+		"ness/user" : "~2.0"
 	},
 	"autoload" : {
 		"psr-4" : {
-			"Zoe\\Component\\Acl\\" : "./src",
-			"ZoeTest\\Component\\Acl\\" : "./tests"
-		},
-		"exclude-from-classmap" : [
-			"tests"
-		]
+			"Ness\\Component\\Acl\\" : "./src"
+		}
+	},
+	"autoload-dev" : {
+		"psr-4" : {
+			"NessTest\\Component\\Acl\\" : "tests"
+		}
 	},
 	"keywords" : [
-		"acl"
-	],
-	"suggest" : {
-		"barogla/cache" : "Psr-16 Cache Implementation to use cache"
-	},
-	"extra" : {
-		"branch-alias" : {
-			"dev-master" : "2.0-dev"
-		}
-	}
+		"acl",
+		"security",
+		"user",
+		"resource",
+		"permissions",
+		"permission"
+	]
 }

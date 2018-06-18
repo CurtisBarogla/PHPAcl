@@ -1,5 +1,3 @@
-# ACL component
+# ACL Component
 
-Far from being finished :)
-
-ACL component
+Documentation soon <sup>TM</sup>
