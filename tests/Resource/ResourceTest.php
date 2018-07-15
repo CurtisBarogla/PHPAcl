@@ -18,13 +18,11 @@ use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\User\AclUserInterface;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
 use Ness\Component\Acl\Exception\InvalidArgumentException;
-use Ness\Component\Acl\Resource\ExtendableResourceInterface;
-use Ness\Component\Acl\Resource\Loader\ResourceLoaderInterface;
 
 /**
  * Resource testcase
  * 
- * @see \ness
+ * @see \Ness\Component\Acl\Resource\Resource
  * 
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
@@ -119,41 +117,6 @@ class ResourceTest extends AclTestCase
         $this->assertSame(2, $resource->getPermission("bar"));
         $this->assertSame(3, $resource->getPermission(["foo", "bar"]));
     }
-
-    /**
-     * @see \Ness\Component\Acl\Resource\Resource::toExtend()
-     */
-    public function testToExtend(): void
-    {
-        $parent = $this->getMockBuilder(ResourceInterface::class)->getMock();
-        $parent->expects($this->exactly(2))->method("getName")->will($this->returnValue("Foo"));
-        $parent->permissions = ["foo" => 1, "bar" => 2, "moz" => 4];
-        
-        $resource = new Resource("Bar", ResourceInterface::BLACKLIST);
-        $resource->addPermission("poz")->addPermission("foo");
-        $this->assertSame($resource, $resource->toExtend($parent));
-        
-        $this->assertSame(1, $resource->getPermission("foo"));
-        $this->assertSame(2, $resource->getPermission("bar"));
-        $this->assertSame(4, $resource->getPermission("moz"));
-        $this->assertSame(8, $resource->getPermission("poz"));
-    }
-    
-    /**
-     * @see \Ness\Component\Acl\Resource\Resource::getParent()
-     */
-    public function testGetParent(): void
-    {
-        $parent = $this->getMockBuilder(ResourceInterface::class)->getMock();
-        $parent->expects($this->exactly(2))->method("getName")->will($this->returnValue("Foo"));
-        $parent->permissions = [];
-        
-        $resource = new Resource("Bar", ResourceInterface::BLACKLIST);
-        
-        $this->assertNull($resource->getParent());
-        $resource->toExtend($parent);
-        $this->assertSame("Foo", $resource->getParent());
-    }
     
     /**
      * @see \Ness\Component\Acl\Resource\Resource::serialize()
@@ -175,7 +138,6 @@ class ResourceTest extends AclTestCase
         $parent->addPermission("foo")->addPermission("bar");
         
         $resource = new Resource("Bar", ResourceInterface::BLACKLIST);
-        $resource->toExtend($parent);
         $resource->addPermission("moz")->addPermission("poz");
         
         $serialize = \serialize($resource);
@@ -193,61 +155,12 @@ class ResourceTest extends AclTestCase
         $this->assertSame($resource, $resource->addPermission("foo"));
     }
     
-    /**
-     * @see \Ness\Component\Acl\Resource\Resource::generateParentTree()
-     */
-    public function testGenerateParentTree(): void
-    {
-        // No parent
-        
-        $base = $this->getMockBuilder(ExtendableResourceInterface::class)->getMock();
-        $base->expects($this->once())->method("getParent")->will($this->returnValue(null));
-        
-        $loader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
-        $loader->expects($this->never())->method("load");
-        
-        $this->assertSame(null, Resource::generateParentTree($base, $loader));
-        
-        // No ExtendableResourceInterface as parent
-        
-        $base = $this->getMockBuilder(ExtendableResourceInterface::class)->getMock();
-        $base->expects($this->exactly(2))->method("getParent")->will($this->returnValue("Foo"));
-        $parent = $this->getMockBuilder(ExtendableResourceInterface::class)->getMock();
-        $parent->expects($this->exactly(2))->method("getParent")->will($this->returnValue("Bar"));
-        $parentParent = $this->getMockBuilder(ResourceInterface::class)->getMock();
-        
-        $loader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
-        $loader->expects($this->exactly(2))->method("load")->withConsecutive(["Foo"], ["Bar"])->will($this->onConsecutiveCalls($parent, $parentParent));
-        
-        $this->assertSame([
-            $parent,
-            $parentParent
-        ], Resource::generateParentTree($base, $loader));
-        
-        // Null as parent
-        
-        $base = $this->getMockBuilder(ExtendableResourceInterface::class)->getMock();
-        $base->expects($this->exactly(2))->method("getParent")->will($this->returnValue("Foo"));
-        $parent = $this->getMockBuilder(ExtendableResourceInterface::class)->getMock();
-        $parent->expects($this->exactly(2))->method("getParent")->will($this->returnValue("Bar"));
-        $parentParent = $this->getMockBuilder(ExtendableResourceInterface::class)->getMock();
-        $parent->expects($this->exactly(2))->method("getParent")->will($this->returnValue(null));
-        
-        $loader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
-        $loader->expects($this->exactly(2))->method("load")->withConsecutive(["Foo"], ["Bar"])->will($this->onConsecutiveCalls($parent, $parentParent));
-        
-        $this->assertSame([
-            $parent,
-            $parentParent
-        ], Resource::generateParentTree($base, $loader));
-    }
-    
                     /**_____EXCEPTIONS_____**/
     
     /**
      * @see \Ness\Component\Acl\Resource\Resource::__construct()
      */
-    public function testException__constructWhenResourceBehaviousIsInvalid(): void
+    public function testException__constructWhenResourceBehaviourIsInvalid(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage("Resource behaviour given for resource 'Foo' is invalid. Use one defined into the interface");
@@ -293,39 +206,6 @@ class ResourceTest extends AclTestCase
         $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
         
         $resource->getPermission(null);
-    }
-    
-    /**
-     * @see \Ness\Component\Acl\Resource\Resource::toExtend()
-     */
-    public function testExceptionToExtendWhenResourceNameAreSame(): void
-    {
-        $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage("Resource 'Foo' cannot have the same parent's one name");
-        
-        $parent = $this->getMockBuilder(ResourceInterface::class)->getMock();
-        $parent->expects($this->once())->method("getName")->will($this->returnValue("Foo"));
-        
-        $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
-        
-        $resource->toExtend($parent);
-    }
-    
-    /**
-     * @see \Ness\Component\Acl\Resource\Resource::toExtend()
-     */
-    public function testExceptionToExtendBypassExceptionWhenAlreadyRegisteredAndNotOther(): void
-    {
-        $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage("This permission name 'foo@' for resource 'Bar' is invalid. MUST contains only [a-z_] characters");
-        
-        $parent = $this->getMockBuilder(ResourceInterface::class)->getMock();
-        $parent->expects($this->once())->method("getName")->will($this->returnValue("Foo"));
-        $parent->permissions = ["foo" => 1, "bar" => 2, "foo@" => 4];
-        
-        $resource = new Resource("Bar", ResourceInterface::BLACKLIST);
-        $resource->addPermission("foo")->addPermission("moz");
-        $resource->toExtend($parent);
     }
     
     /**

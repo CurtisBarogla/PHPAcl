@@ -15,16 +15,14 @@ namespace Ness\Component\Acl\Resource;
 use Ness\Component\Acl\User\AclUserInterface;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
 use Ness\Component\Acl\Exception\InvalidArgumentException;
-use Ness\Component\Acl\Resource\Loader\ResourceLoaderInterface;
 
 /**
- * Native basic implementation of ResourceInterface.
- * This implementation supports inheritance via ExtendableResourceInterface
+ * Native basic implementation of ResourceInterface
  * 
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-class Resource implements ExtendableResourceInterface, \Serializable
+class Resource implements ResourceInterface, \Serializable
 {
     
     /**
@@ -32,21 +30,21 @@ class Resource implements ExtendableResourceInterface, \Serializable
      * 
      * @var string
      */
-    private $name;
+    protected $name;
     
     /**
      * Resource behaviour
      * 
      * @var int
      */
-    private $behaviour;
+    protected $behaviour;
     
     /**
      * Permissions setted
      * 
      * @var int[]
      */
-    private $permissions = [];
+    protected $permissions = [];
     
     /**
      * Actions to perform over the next call to to()
@@ -54,13 +52,6 @@ class Resource implements ExtendableResourceInterface, \Serializable
      * @var \Closure|null
      */
     private $actions = null;
-    
-    /**
-     * Parent resource name
-     * 
-     * @var string|null
-     */
-    private $parent = null;
     
     /**
      * Max permissions allowed
@@ -74,21 +65,21 @@ class Resource implements ExtendableResourceInterface, \Serializable
      * 
      * @var int
      */
-    private const ERROR_PERMISSION_ALREADY_REGISTERED = 1;
+    protected const ERROR_PERMISSION_ALREADY_REGISTERED = 1;
     
     /**
      * Exception code when permission name is invalid
      *
      * @var int
      */
-    private const ERROR_PERMISSION_INVALID = 2;
+    protected const ERROR_PERMISSION_INVALID = 2;
     
     /**
      * Exception code when max permission allowed is reached
      *
      * @var int
      */
-    private const ERROR_MAX_PERMISSION_REACHED = 3;
+    protected const ERROR_MAX_PERMISSION_REACHED = 3;
 
     /**
      * Initialize a resource
@@ -189,65 +180,21 @@ class Resource implements ExtendableResourceInterface, \Serializable
     
     /**
      * {@inheritDoc}
-     * @see \Ness\Component\Acl\Resource\ExtendableResourceInterface::extends()
-     */
-    public function toExtend(ResourceInterface $resource): ResourceInterface
-    {
-        if($resource->getName() === $this->name)
-            throw new \LogicException("Resource '{$this->name}' cannot have the same parent's one name");
-            
-        $this->behaviour = $resource->getBehaviour();
-        
-        $toReinject = \array_keys($this->permissions);
-        $this->permissions = [];
-        
-        foreach (\array_merge(\array_keys($resource->permissions), $toReinject) as $permission) {
-            try {
-                $this->addPermission($permission);                
-            } catch (\LogicException $e) {
-                if($e->getCode() !== self::ERROR_PERMISSION_ALREADY_REGISTERED)
-                    throw $e;
-                continue;
-            }            
-        }
-        
-        $this->parent = $resource->getName();
-        
-        return $this;
-    }
-    
-    /**
-     * {@inheritDoc}
-     * @see \Ness\Component\Acl\Resource\ExtendableResourceInterface::getParent()
-     */
-    public function getParent(): ?string
-    {
-        return $this->parent;
-    }
-    
-    /**
-     * {@inheritDoc}
      * @see \Serializable::serialize()
      */
-    public function serialize()
+    public function serialize(): string
     {
         $this->actions = null;
-        return \serialize([
-            $this->name,
-            $this->behaviour,
-            $this->permissions,
-            $this->actions,
-            $this->parent   
-        ]);
+        return \serialize($this->toSerialize());
     }
     
     /**
      * {@inheritDoc}
      * @see \Serializable::unserialize()
      */
-    public function unserialize($serialized)
+    public function unserialize($serialized): void
     {
-        list($this->name, $this->behaviour, $this->permissions, $this->actions, $this->parent) = \unserialize($serialized);
+        list($this->name, $this->behaviour, $this->permissions, $this->actions) = \unserialize($serialized);
     }
     
     /**
@@ -277,29 +224,19 @@ class Resource implements ExtendableResourceInterface, \Serializable
     }
     
     /**
-     * Generate a tree of all resources setted as parent for a given one
+     * Get serializable properties
      * 
-     * @param ExtendableResourceInterface $resource
-     *   Resource to get the parents
-     * @param ResourceLoaderInterface $loader
-     *   Resource loader
-     * 
-     * @return ResourceInterface[]|null
-     *   An array of resources or null if no parent are assigned to this resource
+     * @return array
+     *   Serializable properties
      */
-    public static function generateParentTree(ExtendableResourceInterface $resource, ResourceLoaderInterface $loader): ?array
+    protected function toSerialize(): array
     {
-        if(null === $resource->getParent())
-            return null;
-        
-        $tree[] = $current = $loader->load($resource->getParent());
-        while (null !== $current->getParent()) {
-            $tree[] = $current = $loader->load($current->getParent());
-            if(!$current instanceof ExtendableResourceInterface)
-                break;
-        }
-        
-        return $tree;
+        return [
+            $this->name,
+            $this->behaviour,
+            $this->permissions,
+            $this->actions
+        ];
     }
     
     /**
