@@ -27,13 +27,13 @@ interface ExtendableResourceInterface extends ResourceInterface
      * @param ResourceInterface $resource
      *   Resource to extends
      *   
-     * @return ResourceInterface
+     * @return ExtendableResourceInterface
      *   Resource extended
      *   
      * @throws \LogicException
      *   When resource name are same
      */
-    public function toExtend(ResourceInterface $resource): ResourceInterface;
+    public function extendsFrom(ResourceInterface $resource): ExtendableResourceInterface;
     
     /**
      * Get parent resource name
