@@ -16,6 +16,7 @@ use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\ResourceNotFoundException;
 use Ness\Component\Acl\Exception\ParseErrorException;
 use Ness\Component\Acl\Resource\Resource;
+use Ness\Component\Acl\Resource\ExtendableResource;
 
 /**
  * Initialize resource from a php file/or a directory of php files.
@@ -104,7 +105,7 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
             throw new ResourceNotFoundException("This resource '{$resource}' cannot be loaded via this loader");
         
         return isset($this->toExtends[$resource]) 
-            ? $this->loadables[$resource]->toExtend($this->load($this->toExtends[$resource])) 
+            ? ExtendableResource::buildFromBasicResource($this->loadables[$resource])->extendsFrom($this->load($this->toExtends[$resource])) 
             : $this->loadables[$resource];
     }
     
@@ -129,7 +130,7 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
                 \implode(", ", \array_keys($invalid)),
                 $file));
         }
-            
+
         $instance = new Resource($name, $resource["behaviour"] ?? ResourceInterface::WHITELIST);
         if(isset($resource["extends"]))
             $this->toExtends[$name] = $resource["extends"];
@@ -186,7 +187,7 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
     {
         if(!\is_array($fileValue) && !$fileValue instanceof ResourceInterface)
             throw new \LogicException("File '{$file}' does not return a value handled by this loaded. It must return an array or an instance of ResourceInterface");
-        
+            
         if($fileValue instanceof ResourceInterface) {
             if($name !== $fileValue->getName())
                 throw new \LogicException("Resource instance name '{$fileValue->getName()}' not concordant with filename '{$name}' into file '{$file}'");

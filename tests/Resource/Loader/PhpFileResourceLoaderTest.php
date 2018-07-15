@@ -77,7 +77,6 @@ class PhpFileResourceLoaderTest extends AclTestCase
         $this->assertSame("CombinedBar", $combinedBar->getName());
         $this->assertSame("CombinedMoz", $combinedMoz->getName());
         
-        $this->assertNull($fooSimple->getParent());
         $this->assertSame("FooSimple", $barSimple->getParent());
         $this->assertSame("BarSimple", $mozSimple->getParent());
         $this->assertSame("FooSimple", $multipleFoo->getParent());
@@ -85,7 +84,6 @@ class PhpFileResourceLoaderTest extends AclTestCase
         $this->assertSame("MultipleFoo", $multipleMoz->getParent());
         $this->assertSame("MultipleMoz", $multiplePoz->getParent());
         $this->assertSame("MultiplePoz", $combinedFoo->getParent());
-        $this->assertNull($combinedBar->getParent());
         $this->assertSame("CombinedFoo", $combinedMoz->getParent());
         
         $this->assertSame(1, $fooSimple->getPermission("foo"));
