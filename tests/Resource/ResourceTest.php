@@ -225,19 +225,6 @@ class ResourceTest extends AclTestCase
     /**
      * @see \Ness\Component\Acl\Resource\Resource::addPermission()
      */
-    public function testExceptionAddPermissionWhenNotValid(): void
-    {
-        $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage("This permission name 'foo@' for resource 'Foo' is invalid. MUST contains only [a-z_] characters");
-        
-        $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
-        
-        $resource->addPermission("foo@");
-    }
-    
-    /**
-     * @see \Ness\Component\Acl\Resource\Resource::addPermission()
-     */
     public function testExceptionAddPermissionWhenMaxIsReached(): void
     {
         $this->expectException(\LogicException::class);

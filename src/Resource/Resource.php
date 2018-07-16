@@ -215,8 +215,6 @@ class Resource implements ResourceInterface, \Serializable
             throw new \LogicException("This permission '{$permission}' is already registered for resource '{$this->name}'", self::ERROR_PERMISSION_ALREADY_REGISTERED);
         if(null !== $this->permissions && $current > self::MAX_PERMISSIONS)
             throw new \LogicException("Cannot add more permission for resource '{$this->name}'", self::ERROR_MAX_PERMISSION_REACHED);
-        if(1 !== \preg_match("#^[a-z_]+$#", $permission))
-            throw new \LogicException("This permission name '{$permission}' for resource '{$this->name}' is invalid. MUST contains only [a-z_] characters", self::ERROR_PERMISSION_INVALID);
             
         $this->permissions[$permission] = ($current === 0) ? 1 : 1 << $current;
         
