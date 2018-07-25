@@ -15,7 +15,6 @@ namespace Ness\Component\Acl\User;
 use Ness\Component\User\UserInterface;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
-use Ness\Component\User\Exception\UserAttributeNotFoundException;
 
 /**
  * Simple implementation of AclUser
@@ -199,17 +198,18 @@ final class AclUser implements AclUserInterface
     {
         $this->on($resource);
         
-        try {            
-            $attribute = $this->getAttribute(self::ACL_ATTRIBUTE_IDENTIFIER);
+        if(null !== $attribute = $this->getAttribute(self::ACL_ATTRIBUTE_IDENTIFIER)) {
             $name = $resource->getName();
             if(isset($attribute[$name]))
                 unset($attribute[$name]);
-            
+                
             $attribute["<{$name}>"] = $this->permission;
             $this->addAttribute(self::ACL_ATTRIBUTE_IDENTIFIER, $attribute);
-        } catch (UserAttributeNotFoundException $e) {
-            $this->addAttribute(self::ACL_ATTRIBUTE_IDENTIFIER, ["<{$resource->getName()}>" => $this->permission]);            
+            
+            return;
         }
+        
+        $this->addAttribute(self::ACL_ATTRIBUTE_IDENTIFIER, ["<{$resource->getName()}>" => $this->permission]);            
     }
     
     /**
@@ -218,11 +218,9 @@ final class AclUser implements AclUserInterface
      */
     public function isLocked(ResourceInterface $resource): bool
     {
-        try {
-            return isset($this->getAttribute(self::ACL_ATTRIBUTE_IDENTIFIER)["<{$resource->getName()}>"]);
-        } catch (UserAttributeNotFoundException $e) {
-            return false;
-        }
+        $attribute = $this->getAttribute(self::ACL_ATTRIBUTE_IDENTIFIER);
+        
+        return null !== $attribute && isset($attribute["<{$resource->getName()}>"]);
     }
     
     /**

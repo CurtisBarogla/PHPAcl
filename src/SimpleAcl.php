@@ -208,13 +208,11 @@ class SimpleAcl implements AclInterface
             $this->resourceChecked[$resource] = true;
         }
         
-        try {
-            $attribute = $user->getAttribute(self::USER_ATTRIBUTE);
-        } catch (UserAttributeNotFoundException $e) {
-            $user->addAttribute(self::USER_ATTRIBUTE, []);            
+        if(null === $attribute = $user->getAttribute(self::USER_ATTRIBUTE)) {
+            $user->addAttribute(self::USER_ATTRIBUTE, []);
             $attribute = $user->getAttribute(self::USER_ATTRIBUTE);
         }
-            
+
         $required = $this->getIndex($this->acl[$resource], $permission, self::PERMISSIONS_INDEX);
         if(null === $update && isset($attribute[$resource])) 
             return (bool) ( ($attribute[$resource] & $required) === $required );
@@ -222,7 +220,8 @@ class SimpleAcl implements AclInterface
         $mask = ($this->acl[$resource][self::BEHAVIOUR_INDEX] === self::BLACKLIST) ? $this->acl[$resource][self::ROOT_INDEX] : 0;
         if(!isset($attribute[$resource]) && null !== $this->processors) {
             foreach ($this->processors as $name => $processor) {
-                if(null !== $processables = $this->combineProcessable($this->acl[$resource], $name)) {
+                $processables = $this->combineProcessable($this->acl[$resource], $name);
+                try {
                     $processor->call(new class(
                         $mask, 
                         $this, 
@@ -233,7 +232,7 @@ class SimpleAcl implements AclInterface
                             } catch (PermissionNotFoundException $e) {
                                 return $this->getIndex($this->acl[$resource], $permission, self::ENTRIES_INDEX);
                             }
-                        }) implements AclUserInteractionWrapperInterface 
+                        }) 
                     {
                         
                         /**
@@ -284,36 +283,28 @@ class SimpleAcl implements AclInterface
                             $this->finder = $finder;
                             
                         }
-                        
-                        /**
-                         * {@inheritDoc}
-                         * @see \Ness\Component\Acl\AclUserInteractionWrapperInterface::getBehaviour()
-                         */
+
                         public function getBehaviour(): int
                         {
                             return $this->behaviour;
                         }
-                        
-                        /**
-                         * {@inheritDoc}
-                         * @see \Ness\Component\Acl\AclUserInteractionWrapperInterface::grant($permission)
-                         */
+
                         public function grant(string $permission): void
                         {
                             $this->permission |= $this->finder->call($this->acl, $permission);
                         }
                         
-                        /**
-                         * {@inheritDoc}
-                         * @see \Ness\Component\Acl\AclUserInteractionWrapperInterface::deny($permission)
-                         */
                         public function deny(string $permission): void
                         {
                             $this->permission &= ~($this->finder->call($this->acl, $permission));
                         }
+                        
                     }, $user, $processables);
+                } catch (PermissionNotFoundException $e) {
+                    continue;
                 }
             }
+            
             $attribute[$resource] = $mask;
             $user->addAttribute(self::USER_ATTRIBUTE, $attribute);
         }
@@ -621,6 +612,7 @@ class SimpleAcl implements AclInterface
 
         $setted = $pointed[self::PERMISSIONS_INDEX][$permission] = ($count === 0) ? 1 : 1 << $count;
         $pointed[self::ROOT_INDEX] |= $setted;
+        $this->acl[$resource][self::ENTRIES_INDEX]["ROOT"] = $pointed[self::ROOT_INDEX];
         
         return $this;
     }
@@ -822,15 +814,19 @@ class SimpleAcl implements AclInterface
             if(\count($visited) > 1) {
                 unset($visited[0]);
                 \krsort($visited);
-                
-                throw new PermissionNotFoundException(\sprintf("This %s '%s' is not registred into resource '%s' neither into one of its parent '%s'",
+                $exception = new PermissionNotFoundException(\sprintf("This %s '%s' is not registred into resource '%s' neither into one of its parent '%s'",
                     $type,
                     $what,
                     $resource[self::NAME_INDEX],
                     \implode(", ", $visited)));
+                $exception->setPermission($what);
+                
+                throw $exception;
             }
-
-            throw new PermissionNotFoundException("This {$type} '{$what}' is not registered into resource '{$resource[self::NAME_INDEX]}'");
+            $exception = new PermissionNotFoundException("This {$type} '{$what}' is not registered into resource '{$resource[self::NAME_INDEX]}'");
+            $exception->setPermission($what);
+            
+            throw $exception;
         }
 
         if($this->pipeline)
@@ -929,45 +925,4 @@ class SimpleAcl implements AclInterface
         $this->behaviour = $behaviour;
     }
 
-}
-
-/**
- * Interaction between the Acl and the user
- * 
- * @author CurtisBarogla <curtis_barogla@outlook.fr>
- *
- */
-interface AclUserInteractionWrapperInterface
-{
-    
-    /**
-     * Get behaviour of the current resource wrapped
-     * 
-     * @return int
-     *   Resource behaviour
-     */
-    public function getBehaviour(): int;
-    
-    /**
-     * Grant a permission
-     * 
-     * @param string $permission
-     *   Permission to grant
-     *   
-     * @throws PermissionNotFoundException
-     *   When permission is not registered
-     */
-    public function grant(string $permission): void;
-    
-    /**
-     * Deny a permission
-     *
-     * @param string $permission
-     *   Permission to deny
-     *
-     * @throws PermissionNotFoundException
-     *   When permission is not registered
-     */
-    public function deny(string $permission): void;
-    
 }

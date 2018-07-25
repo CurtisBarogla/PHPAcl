@@ -18,7 +18,6 @@ use Ness\Component\User\UserInterface;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
 use Ness\Component\Acl\User\AclUserInterface;
-use Ness\Component\User\Exception\UserAttributeNotFoundException;
 
 /**
  * AclUser testcase
@@ -152,7 +151,7 @@ class AclUserTest extends AclTestCase
             ->method("getAttribute")
             ->withConsecutive([AclUserInterface::ACL_ATTRIBUTE_IDENTIFIER])
             ->will($this->onConsecutiveCalls(
-                $this->throwException(new UserAttributeNotFoundException()),
+                null,
                 ["FooResource" => 5, "BarResource" => 6],
                 ["BarResource" => 5]
             ));
@@ -190,7 +189,7 @@ class AclUserTest extends AclTestCase
             ->will($this->onConsecutiveCalls(
                 ["<FooResource>" => 4],
                 ["FooResource" => 5],
-                $this->throwException(new UserAttributeNotFoundException())
+                null
             ));
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->exactly(2))->method("getName")->will($this->returnValue("FooResource"));
@@ -251,7 +250,7 @@ class AclUserTest extends AclTestCase
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->once())->method("grant")->with("foo")->will($this->throwException($exception));
-        $resource->expects($this->exactly(2))->method("getName")->will($this->returnValue("FooResource"));
+        $resource->expects($this->once())->method("getName")->will($this->returnValue("FooResource"));
         
         $user->grant("foo")->on($resource);
     }

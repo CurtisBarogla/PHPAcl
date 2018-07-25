@@ -17,7 +17,6 @@ use Ness\Component\Acl\Exception\InvalidArgumentException;
 use Ness\Component\Acl\Exception\ResourceNotFoundException;
 use Psr\SimpleCache\CacheInterface;
 use Ness\Component\User\UserInterface;
-use Ness\Component\User\Exception\UserAttributeNotFoundException;
 use Ness\Component\Acl\AclBindableInterface;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
 
@@ -45,7 +44,7 @@ class SimpleAclTest extends AclTestCase
             ->method("getAttribute")
             ->withConsecutive([SimpleAcl::USER_ATTRIBUTE])
             ->will($this->onConsecutiveCalls(
-                $this->throwException(new UserAttributeNotFoundException()), 
+                null, 
                 [],
                 ["FooResource" => 3],
                 ["FooResource" => 3, "BarResource" => 7], 
@@ -67,10 +66,10 @@ class SimpleAclTest extends AclTestCase
         $acl->addResource("BarResource", "FooResource")->addPermission("moz")->addPermission("poz")->addEntry("FooEntry", ["FooEntry", "moz"])->end();
         $acl->changeBehaviour(SimpleAcl::BLACKLIST);
         $acl->addResource("MozResource")->addPermission("foo")->addPermission("bar")->end();
-        $acl->registerProcessor("FooProcessor", function(UserInterface $user, array $entries): void {
+        $acl->registerProcessor("FooProcessor", function(UserInterface $user, ?array $entries): void {
             if($this->getBehaviour() === SimpleAcl::WHITELIST)
                 $this->deny("FooEntry");
-            $this->grant("FooEntry");
+            $this->grant("FooEntry");              
         });
         
         $this->assertNull($acl->pipeline());
@@ -161,8 +160,8 @@ class SimpleAclTest extends AclTestCase
         
         $this->assertNull($acl->buildFromFiles($files));
         $this->assertSame([
-            "FooResource"   =>  ["name" => "FooResource", "permissions" => ["foo" => 1, "bar" => 2], "entries" => ["FooEntry" => 3], "behaviour" => 1, "processors" => ["FooProcessor" => ["FooEntry"]], "parent" => null, "root" => 3],
-            "BarResource"   =>  ["name" => "BarResource", "permissions" => ["moz" => 4, "poz" => 8], "entries" => ["FooEntry" => 15], "behaviour" => 1, "processors" => null, "parent" => "FooResource", "root" => 15],
+            "FooResource"   =>  ["name" => "FooResource", "permissions" => ["foo" => 1, "bar" => 2], "entries" => ["ROOT" => 3, "FooEntry" => 3], "behaviour" => 1, "processors" => ["FooProcessor" => ["FooEntry"]], "parent" => null, "root" => 3],
+            "BarResource"   =>  ["name" => "BarResource", "permissions" => ["moz" => 4, "poz" => 8], "entries" => ["ROOT" => 15, "FooEntry" => 15], "behaviour" => 1, "processors" => null, "parent" => "FooResource", "root" => 15],
             "MozResource"   =>  ["name" => "MozResource", "permissions" => null, "entries" => null, "behaviour" => 1, "processors" => null, "parent" => "BarResource", "root" => 15]
         ], $this->extractAclProperty($acl, "acl"));
     }
@@ -228,9 +227,9 @@ class SimpleAclTest extends AclTestCase
         $this->assertSame($acl, $acl->addResource("Moz", "Foo")->addPermission("poz"));
         
         $this->assertSame([
-            "Bar"   =>  ["name" => "Bar", "permissions" => ["bar" => 1], "entries" => null, "behaviour" => 0, "processors" => null, "parent" => null, "root" => 1],
-            "Foo"   =>  ["name" => "Foo", "permissions" => ["foo" => 1, "bar" => 2, "moz" => 4], "entries" => null, "behaviour" => 0, "processors" => null, "parent" => null, "root" => 7],
-            "Moz"   =>  ["name" => "Moz", "permissions" => ["poz" => 8], "entries" => null, "behaviour" => 0, "processors" => null, "parent" => "Foo", "root" => 15]
+            "Bar"   =>  ["name" => "Bar", "permissions" => ["bar" => 1], "entries" => ["ROOT" => 1], "behaviour" => 0, "processors" => null, "parent" => null, "root" => 1],
+            "Foo"   =>  ["name" => "Foo", "permissions" => ["foo" => 1, "bar" => 2, "moz" => 4], "entries" => ["ROOT" => 7], "behaviour" => 0, "processors" => null, "parent" => null, "root" => 7],
+            "Moz"   =>  ["name" => "Moz", "permissions" => ["poz" => 8], "entries" => ["ROOT" => 15], "behaviour" => 0, "processors" => null, "parent" => "Foo", "root" => 15]
         ], $this->extractAclProperty($acl, "acl"));
     }
     
@@ -275,9 +274,9 @@ class SimpleAclTest extends AclTestCase
         ->end();
         
         $this->assertSame([
-            "Foo"   =>  ["name" => "Foo", "permissions" => ["foo" => 1, "bar" => 2], "entries" => ["FooEntry" => 3, "BarEntry" => 1], "behaviour" => 1, "processors" => ["FooProcessor" => ["FooEntry", "BarEntry"]], "parent" => null, "root" => 3],
-            "Bar"   =>  ["name" => "Bar", "permissions" => ["moz" => 4, "poz" => 8], "entries" => ["BarEntry" => 15], "behaviour" => 1, "processors" => null, "parent" => "Foo", "root" => 15],
-            "Moz"   =>  ["name" => "Moz", "permissions" => ["loz" => 16, "kek" => 32], "entries" => ["MozEntry" => 63], "behaviour" => 1, "processors" => null, "parent" => "Bar", "root" => 63],
+            "Foo"   =>  ["name" => "Foo", "permissions" => ["foo" => 1, "bar" => 2], "entries" => ["ROOT" => 3, "FooEntry" => 3, "BarEntry" => 1], "behaviour" => 1, "processors" => ["FooProcessor" => ["FooEntry", "BarEntry"]], "parent" => null, "root" => 3],
+            "Bar"   =>  ["name" => "Bar", "permissions" => ["moz" => 4, "poz" => 8], "entries" => ["ROOT" => 15, "BarEntry" => 15], "behaviour" => 1, "processors" => null, "parent" => "Foo", "root" => 15],
+            "Moz"   =>  ["name" => "Moz", "permissions" => ["loz" => 16, "kek" => 32], "entries" => ["ROOT" => 63, "MozEntry" => 63], "behaviour" => 1, "processors" => null, "parent" => "Bar", "root" => 63],
         ], $this->extractAclProperty($acl, "acl"));
     }
     
