@@ -484,6 +484,16 @@ class SimpleAclTest extends AclTestCase
         }
     }
     
+    public function testExceptionAddEntryWhenEntryNameIsRoot(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("ROOT entry name is reserved and cannot be reassigned into resource 'Foo'");
+        
+        $acl = new SimpleAcl();
+        
+        $acl->addResource("Foo")->addEntry("ROOT", []);
+    }
+    
     /**
      * @see \Ness\Component\Acl\SimpleAcl::buildMaskRepresentation()
      */

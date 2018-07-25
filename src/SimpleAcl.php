@@ -653,8 +653,11 @@ class SimpleAcl implements AclInterface
      *   When given resource is not registered
      */
     public function addEntry(string $entry, array $permissions, ?string $resource = null): self
-    {
+    {        
         $pointed = &$this->point($resource);
+        
+        if($entry === "ROOT")
+            throw new InvalidArgumentException("ROOT entry name is reserved and cannot be reassigned into resource '{$resource}'");
         
         $value = 0;
         foreach ($permissions as $permission) {
