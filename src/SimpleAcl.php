@@ -17,7 +17,6 @@ use Ness\Component\Acl\Exception\ResourceNotFoundException;
 use Ness\Component\Acl\Exception\InvalidArgumentException;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
 use Psr\SimpleCache\CacheInterface;
-use Ness\Component\User\Exception\UserAttributeNotFoundException;
 
 /**
  * Simple acl.

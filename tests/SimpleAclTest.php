@@ -91,6 +91,9 @@ class SimpleAclTest extends AclTestCase
      */
     public function testCache(): void
     {
+        if(!\interface_exists("Psr\SimpleCache\CacheInterface"))
+            self::markTestSkipped("PSR-16 Not installed");
+
         $cache = $this->getMockBuilder(CacheInterface::class)->getMock();
         
         $acl = new SimpleAcl();
@@ -111,6 +114,9 @@ class SimpleAclTest extends AclTestCase
      */
     public function testBuildFromCache(): void
     {
+        if(!\interface_exists("Psr\SimpleCache\CacheInterface"))
+            self::markTestSkipped("PSR-16 Not installed");
+        
         $cache = $this->getMockBuilder(CacheInterface::class)->getMock();
         
         $acl = new SimpleAcl();
@@ -138,6 +144,9 @@ class SimpleAclTest extends AclTestCase
      */
     public function testInvalidateCache(): void
     {
+        if(!\interface_exists("Psr\SimpleCache\CacheInterface"))
+            self::markTestSkipped("PSR-16 Not installed");
+            
         $cache = $this->getMockBuilder(CacheInterface::class)->getMock();
         $cache->expects($this->once())->method("delete")->with(SimpleAcl::CACHE_KEY);
         
