@@ -92,18 +92,20 @@ class SimpleAclTest extends AclTestCase
         // Resource setted into attribute
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user
-            ->expects($this->exactly(4))
+            ->expects($this->exactly(5))
             ->method("getAttribute")
             ->with(SimpleAcl::USER_ATTRIBUTE)
             ->will($this->onConsecutiveCalls(
                 ["<FooResource>"    =>  3],
                 ["FooResource"      =>  0],
                 ["BarResource"      =>  3],
+                ["BarResource"      =>  3],
                 ["BarResource"      =>  3]
         ));
         
         $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
-        $bindable->expects($this->exactly(2))->method("getAclResourceName")->will($this->returnValue("BarResource"));
+        $bindable->expects($this->exactly(3))->method("getAclResourceName")->will($this->returnValue("BarResource"));
+        $bindable->expects($this->once())->method("updateAclPermission")->with($user, "moz")->will($this->returnValue(true));
         $this->assertNull($acl->pipeline());
         $this->assertFalse($acl->isAllowed($user, "FooResource", "moz", function(UserInterface $user): bool {
             return true;
@@ -113,6 +115,7 @@ class SimpleAclTest extends AclTestCase
         }));
         $this->assertTrue($acl->isAllowed($user, $bindable, "foo"));
         $this->assertTrue($acl->isAllowed($user, $bindable, "foo"));
+        $this->assertTrue($acl->isAllowed($user, $bindable, "moz"));
         $this->assertNull($acl->endPipeline());
         
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
