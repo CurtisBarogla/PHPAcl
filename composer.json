@@ -26,6 +26,10 @@
 			"NessTest\\Component\\Acl\\" : "tests"
 		}
 	},
+	"suggest" : {
+		"psr/simple-cache-implementation" : "A library providing PSR-16",
+		"ness/cache" : "To use cache mechanism"
+	},
 	"keywords" : [
 		"acl",
 		"security",
