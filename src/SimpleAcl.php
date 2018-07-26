@@ -193,6 +193,7 @@ class SimpleAcl implements AclInterface
             $resource = $resource->getAclResourceName();
         }
         
+        
         if(!isset($this->resourceChecked[$resource])) {
             if(!\is_string($resource) && !$resource instanceof AclBindableInterface)
                 throw new \TypeError(\sprintf("Resource MUST be a string or an implementation of AclBindableInterface. '%s' given",
@@ -206,21 +207,21 @@ class SimpleAcl implements AclInterface
                             
             $this->resourceChecked[$resource] = true;
         }
-        
+                
         if(null === $attribute = $user->getAttribute(self::USER_ATTRIBUTE)) {
             $user->addAttribute(self::USER_ATTRIBUTE, []);
             $attribute = $user->getAttribute(self::USER_ATTRIBUTE);
         }
-
+        
         $required = $this->getIndex($this->acl[$resource], $permission, self::PERMISSIONS_INDEX);
-        if(null === $update && isset($attribute[$resource])) 
-            return (bool) ( ($attribute[$resource] & $required) === $required );
+        if(isset($attribute["<{$resource}>"]) || null === $update && isset($attribute[$resource]))
+            return (bool) ( ( ($attribute[$resource] ?? $attribute["<{$resource}>"]) & $required) === $required );
         
         $mask = ($this->acl[$resource][self::BEHAVIOUR_INDEX] === self::BLACKLIST) ? $this->acl[$resource][self::ROOT_INDEX] : 0;
+        $locked = false;
         if(!isset($attribute[$resource]) && null !== $this->processors) {
             foreach ($this->processors as $name => $processor) {
                 $processables = $this->combineProcessable($this->acl[$resource], $name);
-                try {
                     $processor->call(new class(
                         $mask, 
                         $this, 
@@ -231,7 +232,8 @@ class SimpleAcl implements AclInterface
                             } catch (PermissionNotFoundException $e) {
                                 return $this->getIndex($this->acl[$resource], $permission, self::ENTRIES_INDEX);
                             }
-                        }) 
+                        },
+                        $locked) 
                     {
                         
                         /**
@@ -263,6 +265,13 @@ class SimpleAcl implements AclInterface
                         private $finder;
                         
                         /**
+                         * If permission has been locked
+                         * 
+                         * @var bool
+                         */
+                        private $locked;
+                        
+                        /**
                          * Initialize the wrapper
                          *
                          * @param int $permission
@@ -273,14 +282,16 @@ class SimpleAcl implements AclInterface
                          *   Reference to resource behaviour
                          * @param \Closure $finder
                          *   Reference to determine a permission or an entry
+                         * @param bool $locked
+                         *   If permissions has been locked
                          */
-                        public function __construct(int& $permission, SimpleAcl $acl, int $behaviour, \Closure $finder)
+                        public function __construct(int& $permission, SimpleAcl $acl, int $behaviour, \Closure $finder, bool& $locked)
                         {
                             $this->permission = &$permission;
                             $this->acl = $acl;
                             $this->behaviour = $behaviour;
                             $this->finder = $finder;
-                            
+                            $this->locked = &$locked;
                         }
 
                         public function getBehaviour(): int
@@ -289,29 +300,41 @@ class SimpleAcl implements AclInterface
                         }
 
                         public function grant(string $permission): void
-                        {
-                            $this->permission |= $this->finder->call($this->acl, $permission);
+                        {   
+                            try {
+                                if(!$this->locked)
+                                    $this->permission |= $this->finder->call($this->acl, $permission);                                
+                            } catch (PermissionNotFoundException $e) {
+                            }
                         }
                         
                         public function deny(string $permission): void
                         {
-                            $this->permission &= ~($this->finder->call($this->acl, $permission));
+                            try {
+                                if(!$this->locked)
+                                    $this->permission &= ~($this->finder->call($this->acl, $permission));                                
+                            } catch (PermissionNotFoundException $e) {
+                            }
+                        }
+                        
+                        public function lock(): void
+                        {
+                            $this->locked = true;
                         }
                         
                     }, $user, $processables);
-                } catch (PermissionNotFoundException $e) {
-                    continue;
-                }
+                    
+                if($locked)
+                    break;
             }
             
-            $attribute[$resource] = $mask;
+            $attribute[($locked) ? "<{$resource}>" : $resource] = $mask;
             $user->addAttribute(self::USER_ATTRIBUTE, $attribute);
         }
-        
-        
+
         $result = (bool) ( ($mask & $required) === $required);
         
-        if(null === $update)
+        if(null === $update || $locked)
             return $result;
         
         $update = \Closure::bind($update, null);

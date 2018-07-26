@@ -36,54 +36,154 @@ class SimpleAclTest extends AclTestCase
      */
     public function testIsAllowed(): void
     {
-        $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
-        $bindable->expects($this->exactly(4))->method("getAclResourceName")->will($this->returnValue("BarResource"));
+        // Blacklist
+        $acl = new SimpleAcl(SimpleAcl::BLACKLIST);
+        $acl->addResource("FooResource")
+            ->addPermission("foo")
+            ->addPermission("bar")
+            ->addPermission("moz");
+        $acl->addResource("BarResource", "FooResource")
+            ->addPermission("loz")
+            ->addPermission("kek");
+        $user = $this->getMockBuilder(UserInterface::class)->getMock();
+        $user->expects($this->any())->method("getAttribute")->with(SimpleAcl::USER_ATTRIBUTE)->will($this->returnValue(null));
+        
+        $this->assertTrue($acl->isAllowed($user, "BarResource", "moz"));
+        $this->assertFalse($acl->isAllowed($user, "BarResource", "moz", function(UserInterface $user): bool {
+            return true;
+        }));
+        
+        // Whitelist
+        $acl = new SimpleAcl();
+        $acl->addResource("FooResource")
+            ->addPermission("foo")
+            ->addPermission("bar")
+            ->addPermission("moz")
+            ->wrapProcessor("FooProcessor")
+                ->addEntry("FooEntry", ["foo", "bar"])
+            ->endWrapProcessor();
+        $acl->addResource("BarResource", "FooResource")
+            ->addPermission("loz")
+            ->addPermission("kek");
+        $acl->registerProcessor("ROOTPROCESSOR", function(UserInterface $user): void {
+            $this->grant("NOTFOUND");
+            $this->deny("NOTFOUND");
+            
+            if($user->getName() === "ROOTUSER" && $this->getBehaviour() === SimpleAcl::WHITELIST) {
+                $this->grant("ROOT");
+                $this->lock();
+                return;
+            }
+            
+            $this->grant("ROOT");
+            
+            if($user->getName() === "TODENYUSER") {
+                $this->deny("ROOT");
+                $this->lock();
+            }
+            
+            $this->grant("ROOT");
+        });
+        $acl->registerProcessor("FooProcessor", function(UserInterface $user): void {
+            $this->deny("ROOT");
+            $this->grant("FooEntry");  
+        });
+        
+        // Resource setted into attribute
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user
-            ->expects($this->exactly(7))
+            ->expects($this->exactly(4))
             ->method("getAttribute")
-            ->withConsecutive([SimpleAcl::USER_ATTRIBUTE])
+            ->with(SimpleAcl::USER_ATTRIBUTE)
+            ->will($this->onConsecutiveCalls(
+                ["<FooResource>"    =>  3],
+                ["FooResource"      =>  0],
+                ["BarResource"      =>  3],
+                ["BarResource"      =>  3]
+        ));
+        
+        $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
+        $bindable->expects($this->exactly(2))->method("getAclResourceName")->will($this->returnValue("BarResource"));
+        $this->assertNull($acl->pipeline());
+        $this->assertFalse($acl->isAllowed($user, "FooResource", "moz", function(UserInterface $user): bool {
+            return true;
+        }));
+        $this->assertTrue($acl->isAllowed($user, "FooResource", "moz", function(UserInterface $user): bool {
+            return true;
+        }));
+        $this->assertTrue($acl->isAllowed($user, $bindable, "foo"));
+        $this->assertTrue($acl->isAllowed($user, $bindable, "foo"));
+        $this->assertNull($acl->endPipeline());
+        
+        $user = $this->getMockBuilder(UserInterface::class)->getMock();
+        $user
+            ->expects($this->exactly(3))
+            ->method("getAttribute")
             ->will($this->onConsecutiveCalls(
                 null, 
                 [],
-                ["FooResource" => 3],
-                ["FooResource" => 3, "BarResource" => 7], 
-                ["FooResource" => 3, "BarResource" => 7],
-                ["FooResource" => 3, "BarResource" => 7],
-                ["FooResource" => 3, "BarResource" => 7])
+                ["<FooResource>" => 7]
+        ));
+        $user
+            ->expects($this->exactly(3))
+            ->method("addAttribute")
+            ->withConsecutive(
+                [SimpleAcl::USER_ATTRIBUTE, []],
+                [SimpleAcl::USER_ATTRIBUTE, ["<FooResource>" => 7]],
+                [SimpleAcl::USER_ATTRIBUTE, ["<FooResource>" => 7, "<BarResource>" => 31]]
             );
+        $user->expects($this->exactly(2))->method("getName")->will($this->returnValue("ROOTUSER"));
+        
+        $this->assertTrue($acl->isAllowed($user, "FooResource", "foo"));
+        $this->assertTrue($acl->isAllowed($user, "BarResource", "foo"));
+        
+        $user = $this->getMockBuilder(UserInterface::class)->getMock();
+        $user
+            ->expects($this->exactly(3))
+            ->method("getAttribute")
+            ->will($this->onConsecutiveCalls(
+                null,
+                [],
+                ["<FooResource>" => 0]
+        ));
+        $user
+            ->expects($this->exactly(3))
+            ->method("addAttribute")
+            ->withConsecutive(
+                [SimpleAcl::USER_ATTRIBUTE, []],
+                [SimpleAcl::USER_ATTRIBUTE, ["<FooResource>" => 0]],
+                [SimpleAcl::USER_ATTRIBUTE, ["<FooResource>" => 0, "<BarResource>" => 0]]
+        );
+        
+        $user->expects($this->exactly(4))->method("getName")->will($this->returnValue("TODENYUSER"));
+        
+        $this->assertFalse($acl->isAllowed($user, "FooResource", "bar"));
+        $this->assertFalse($acl->isAllowed($user, "BarResource", "loz"));
+        
+        $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user
             ->expects($this->exactly(4))
+            ->method("getAttribute")
+            ->will($this->onConsecutiveCalls(
+                null,
+                [],
+                ["FooResource" => 3],
+                ["FooResource" => 3, "BarResource" => 3]
+        ));
+        $user
+            ->expects($this->exactly(3))
             ->method("addAttribute")
             ->withConsecutive(
                 [SimpleAcl::USER_ATTRIBUTE, []],
                 [SimpleAcl::USER_ATTRIBUTE, ["FooResource" => 3]],
-                [SimpleAcl::USER_ATTRIBUTE, ["FooResource" => 3, "BarResource" => 7]],
-                [SimpleAcl::USER_ATTRIBUTE, ["FooResource" => 3, "BarResource" => 7, "MozResource" => 3]]
-            );
-        $acl = new SimpleAcl();
-        $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->wrapProcessor("FooProcessor")->addEntry("FooEntry", ["foo", "bar"])->end();
-        $acl->addResource("BarResource", "FooResource")->addPermission("moz")->addPermission("poz")->addEntry("FooEntry", ["FooEntry", "moz"])->end();
-        $acl->changeBehaviour(SimpleAcl::BLACKLIST);
-        $acl->addResource("MozResource")->addPermission("foo")->addPermission("bar")->end();
-        $acl->registerProcessor("FooProcessor", function(UserInterface $user, ?array $entries): void {
-            if($this->getBehaviour() === SimpleAcl::WHITELIST)
-                $this->deny("FooEntry");
-            $this->grant("FooEntry");              
-        });
+                [SimpleAcl::USER_ATTRIBUTE, ["FooResource" => 3, "BarResource" => 3]]
+        );
         
-        $this->assertNull($acl->pipeline());
+        $user->expects($this->exactly(4))->method("getName")->will($this->returnValue("LAMBDAUSER"));
+        
         $this->assertTrue($acl->isAllowed($user, "FooResource", "foo"));
-        $this->assertTrue($acl->isAllowed($user, $bindable, "foo"));
-        $this->assertTrue($acl->isAllowed($user, $bindable, "foo"));
-        $this->assertTrue($acl->isAllowed($user, $bindable, "moz"));
-        $this->assertTrue($acl->isAllowed($user, $bindable, "poz", function(UserInterface $user, AclBindableInterface $binded): bool {
-            return true;
-        }));
-        $this->assertFalse($acl->isAllowed($user, "MozResource", "foo", function(UserInterface $user): bool {
-            return true;
-        }));
-        $this->assertNull($acl->endPipeline());
+        $this->assertTrue($acl->isAllowed($user, "BarResource", "bar"));
+        $this->assertFalse($acl->isAllowed($user, "BarResource", "loz"));
     }
     
     /**
