@@ -189,23 +189,13 @@ class SimpleAcl implements AclInterface
     public function isAllowed(UserInterface $user, $resource, string $permission, ?\Closure $update = null): bool
     {
         if($resource instanceof AclBindableInterface) {
-            $bindable = $resource;
+            $update = function() use ($permission, $user, $resource) {
+                return $resource->updateAclPermission($user, $permission);
+            };
             $resource = $resource->getAclResourceName();
         }
         
-        if(!isset($this->resourceChecked[$resource])) {
-            if(!\is_string($resource) && !$resource instanceof AclBindableInterface)
-                throw new \TypeError(\sprintf("Resource MUST be a string or an implementation of AclBindableInterface. '%s' given",
-                    \is_object($resource) ? \get_class($resource) : \gettype($resource)));
-                    
-            if(0 === \preg_match("#^[a-zA-Z0-9_]+$#", $resource))
-                throw new InvalidArgumentException("Resource name '{$resource}' is invalid");
-                        
-            if(!isset($this->acl[$resource]))
-                throw new ResourceNotFoundException("This resource '{$resource}' is not registered into the acl");
-                            
-            $this->resourceChecked[$resource] = true;
-        }
+        $this->validateResourceName($resource);
                 
         if(null === $attribute = $user->getAttribute(self::USER_ATTRIBUTE)) {
             $user->addAttribute(self::USER_ATTRIBUTE, []);
@@ -213,16 +203,15 @@ class SimpleAcl implements AclInterface
         }
         
         $required = $this->getIndex($this->acl[$resource], $permission, self::PERMISSIONS_INDEX);
-        if(isset($attribute["<{$resource}>"]) || (!isset($bindable) && null === $update && isset($attribute[$resource])) )
+        if(isset($attribute["<{$resource}>"]) || (null === $update && isset($attribute[$resource])))
             return (bool) ( ( ($attribute[$resource] ?? $attribute["<{$resource}>"]) & $required) === $required );
         
         $locked = false;
-        if(!isset($attribute[$resource]) && null !== $this->processors) {
+        if(!isset($attribute[$resource])) {
             $mask = ($this->acl[$resource][self::BEHAVIOUR_INDEX] === self::BLACKLIST) ? $this->acl[$resource][self::ROOT_INDEX] : 0;
             foreach ($this->processors as $name => $processor) {
                 $processables = $this->combineProcessable($this->acl[$resource], $name);
-                $processor->call($this->getProcessorAclWrapper($mask, $locked, $resource), $user, $processables);
-                    
+                $processor->call($this->getProcessorAclWrapper($mask, $locked, $resource), $user, $processables);  
                 if($locked)
                     break;
             }
@@ -232,19 +221,12 @@ class SimpleAcl implements AclInterface
         } else
             $mask = $attribute[$resource];
 
-        $result = (bool) ( ($mask & $required) === $required);
-
-        $update = (isset($bindable)) ? function() use ($permission, $user, $bindable) {
-            return $bindable->updateAclPermission($user, $permission);
-        } : $update;
-
         if(null === $update || $locked)
-            return $result;
+            return (bool) ( ($mask & $required) === $required);
 
-        if($this->acl[$resource][self::BEHAVIOUR_INDEX] === self::WHITELIST)
-            return $result || \Closure::bind($update, null)($user);
-        
-        return $result && !\Closure::bind($update, null)($user);
+        return ($this->acl[$resource][self::BEHAVIOUR_INDEX] === self::WHITELIST) 
+                        ? ((bool) ( ($mask & $required) === $required) || \Closure::bind($update, null)($user)) 
+                        : ((bool) ( ($mask & $required) === $required) && !\Closure::bind($update, null)($user));  
     }
     
     /**
@@ -853,6 +835,36 @@ class SimpleAcl implements AclInterface
     }
     
     /**
+     * Validate a resource name
+     * 
+     * @param string $resource
+     *   Resource name
+     *   
+     * @throws \TypeError
+     *   When neither a string or an AclBindableInterface component
+     * @throws InvalidArgumentException
+     *   When does not matche the pattern
+     * @throws ResourceNotFoundException
+     *   When not registered into the acl
+     */
+    private function validateResourceName($resource): void
+    {
+        if(!isset($this->resourceChecked[$resource])) {
+            if(!\is_string($resource) && !$resource instanceof AclBindableInterface)
+                throw new \TypeError(\sprintf("Resource MUST be a string or an implementation of AclBindableInterface. '%s' given",
+                    \is_object($resource) ? \get_class($resource) : \gettype($resource)));
+            
+            if(0 === \preg_match("#^[a-zA-Z0-9_]+$#", $resource))
+                throw new InvalidArgumentException("Resource name '{$resource}' is invalid");
+                    
+            if(!isset($this->acl[$resource]))
+                throw new ResourceNotFoundException("This resource '{$resource}' is not registered into the acl");
+                        
+            $this->resourceChecked[$resource] = true;
+        }
+    }
+    
+    /**
      * Provide an object wrapper to process a resource
      * 
      * @param int& $mask
@@ -938,11 +950,23 @@ class SimpleAcl implements AclInterface
                 $this->locked = &$locked;
             }
             
+            /**
+             * Get behaviour of the current resource
+             * 
+             * @return int
+             *   Resource behaviour
+             */
             public function getBehaviour(): int
             {
                 return $this->behaviour;
             }
             
+            /**
+             * Grant permission or an entry
+             * 
+             * @param string $permission
+             *   Permission or entry name
+             */
             public function grant(string $permission): void
             {
                 try {
@@ -952,6 +976,12 @@ class SimpleAcl implements AclInterface
                 }
             }
             
+            /**
+             * Deny permission or an entry
+             *
+             * @param string $permission
+             *   Permission or entry name
+             */
             public function deny(string $permission): void
             {
                 try {
@@ -961,6 +991,10 @@ class SimpleAcl implements AclInterface
                 }
             }
             
+            /**
+             * Lock the mask for the resource. 
+             * Therefore it cannot be modified 
+             */
             public function lock(): void
             {
                 $this->locked = true;
