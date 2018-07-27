@@ -50,7 +50,7 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
     private $builded = false;
     
     /**
-     * Resource that need to be extends
+     * Resources that need to be extended
      * 
      * @var array
      */
