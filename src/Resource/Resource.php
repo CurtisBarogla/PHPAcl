@@ -68,18 +68,11 @@ class Resource implements ResourceInterface, \Serializable
     protected const ERROR_PERMISSION_ALREADY_REGISTERED = 1;
     
     /**
-     * Exception code when permission name is invalid
-     *
-     * @var int
-     */
-    protected const ERROR_PERMISSION_INVALID = 2;
-    
-    /**
      * Exception code when max permission allowed is reached
      *
      * @var int
      */
-    protected const ERROR_MAX_PERMISSION_REACHED = 3;
+    protected const ERROR_MAX_PERMISSION_REACHED = 2;
 
     /**
      * Initialize a resource
@@ -202,15 +195,17 @@ class Resource implements ResourceInterface, \Serializable
      * 
      * @param string $permission
      *   Permission name
+     *   
      * @return self
      *   Fluent
+     *   
      * @throws \LogicException
      *   When permission is already registered or max permissions count is reached
      */
     public function addPermission(string $permission): self
     {
         $current = \count($this->permissions);
-        
+
         if(isset($this->permissions[$permission]))
             throw new \LogicException("This permission '{$permission}' is already registered for resource '{$this->name}'", self::ERROR_PERMISSION_ALREADY_REGISTERED);
         if(null !== $this->permissions && $current > self::MAX_PERMISSIONS)

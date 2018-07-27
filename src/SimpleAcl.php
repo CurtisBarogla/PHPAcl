@@ -563,6 +563,8 @@ class SimpleAcl implements AclInterface
      *   If no resource has been setted
      * @throws ResourceNotFoundException
      *   When given resource is not registered
+     * @throws InvalidArgumentException
+     *   When entry name is reserved
      */
     public function addEntry(string $entry, array $permissions, ?string $resource = null): self
     {        
@@ -662,7 +664,7 @@ class SimpleAcl implements AclInterface
     /**
      * Point on the current resource or the given one
      * 
-     * @param string|null $resource
+     * @param string&|null& $resource
      *   Resource to point
      *  
      * @return &array
@@ -692,10 +694,10 @@ class SimpleAcl implements AclInterface
      * 
      * @param array $resource
      *   Resource to check
-     * @param string $what
-     *   What to get
+     * @param string $permission
+     *   Permission. Can be either a permission or an entry depending of the index given
      * @param string $index
-     *   Index to check. permission or entries
+     *   Index to check. Permissions or entries
      * 
      * @return int
      *   Permission or entry value
@@ -703,7 +705,7 @@ class SimpleAcl implements AclInterface
      * @throws PermissionNotFoundException
      *   When entry or permission cannot be found
      */
-    protected function getIndex(array $resource, string $what, string $index): int
+    protected function getIndex(array $resource, string $permission, string $index): int
     {
         if(isset($resource[$index][$what]))
             return $resource[$index][$what];
@@ -858,9 +860,6 @@ class SimpleAcl implements AclInterface
             if(!\is_string($resource) && !$resource instanceof AclBindableInterface)
                 throw new \TypeError(\sprintf("Resource MUST be a string or an implementation of AclBindableInterface. '%s' given",
                     \is_object($resource) ? \get_class($resource) : \gettype($resource)));
-            
-            if(0 === \preg_match("#^[a-zA-Z0-9_]+$#", $resource))
-                throw new InvalidArgumentException("Resource name '{$resource}' is invalid");
                     
             if(!isset($this->acl[$resource]))
                 throw new ResourceNotFoundException("This resource '{$resource}' is not registered into the acl");

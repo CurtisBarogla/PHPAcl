@@ -467,18 +467,6 @@ class SimpleAclTest extends AclTestCase
     /**
      * @see \Ness\Component\Acl\SimpleAcl::isAllowed()
      */
-    public function testExceptionIsAllowedWhenGivenPermissionIsInvalid(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage("Resource name 'Foo+' is invalid");
-        
-        $acl = new SimpleAcl();
-        $acl->isAllowed($this->getMockBuilder(UserInterface::class)->getMock(), "Foo+", "Foo");
-    }
-    
-    /**
-     * @see \Ness\Component\Acl\SimpleAcl::isAllowed()
-     */
     public function testExceptionIsAllowedWhenResourceIsNotRegistered(): void
     {
         $this->expectException(ResourceNotFoundException::class);

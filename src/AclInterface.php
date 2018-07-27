@@ -15,12 +15,9 @@ namespace Ness\Component\Acl;
 use Ness\Component\User\UserInterface;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
 use Ness\Component\Acl\Exception\ResourceNotFoundException;
-use Ness\Component\Acl\Exception\InvalidArgumentException;
 
 /**
  * Manage autorisations/permission over User and Resource.
- * Resource name MUST contains only [a-zA-z0-9_] characters.
- * Permission name MUST contains only [a-z_] characters
  * 
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
@@ -51,8 +48,6 @@ interface AclInterface
      *   When given permission is not checkable
      * @throws ResourceNotFoundException
      *   When the given resource does not exist
-     * @throws InvalidArgumentException
-     *   When permission or resource is invalid
      */
     public function isAllowed(UserInterface $user, $resource, string $permission, ?\Closure $update = null): bool;
     
