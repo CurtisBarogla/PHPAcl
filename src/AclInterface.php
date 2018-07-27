@@ -38,6 +38,8 @@ interface AclInterface
      *   Update rights of the user over the given resource before the acl made its decision. 
      *   MUST never be executed if the given resource is an acl bindable component.
      *   Permissions updated here MUST NOT be propagated to other isAllowed calls
+     *   This Closure takes as parameter the user currently processed by the acl.
+     *   MUST return a boolean
      * 
      * @return bool
      *   True if the user can perform all actions over given permissions

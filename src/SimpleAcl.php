@@ -195,7 +195,7 @@ class SimpleAcl implements AclInterface
             $resource = $resource->getAclResourceName();
         }
         
-        $this->validateResourceName($resource);
+        $this->validateResource($resource);
                 
         if(null === $attribute = $user->getAttribute(self::USER_ATTRIBUTE)) {
             $user->addAttribute(self::USER_ATTRIBUTE, []);
@@ -690,7 +690,7 @@ class SimpleAcl implements AclInterface
     
     /**
      * Try to get the value of a permission or an entry from a resource from a resource and its parents.
-     * If $what is a resource entry and this entry has been overwritten, will return the last one
+     * If $permission is a resource entry and this entry has been overwritten, will return the last one
      * 
      * @param array $resource
      *   Resource to check
@@ -707,19 +707,19 @@ class SimpleAcl implements AclInterface
      */
     protected function getIndex(array $resource, string $permission, string $index): int
     {
-        if(isset($resource[$index][$what]))
-            return $resource[$index][$what];
+        if(isset($resource[$index][$permission]))
+            return $resource[$index][$permission];
 
-        if(isset($this->currentPipeline[$resource[self::NAME_INDEX]][$index][$what]))
-            return $this->currentPipeline[$resource[self::NAME_INDEX]][$index][$what];
+        if(isset($this->currentPipeline[$resource[self::NAME_INDEX]][$index][$permission]))
+            return $this->currentPipeline[$resource[self::NAME_INDEX]][$index][$permission];
         
         $value = null;
         $visited = null;
 
-        $this->loopOnResource($resource[self::NAME_INDEX], function(array $parent, string $name) use ($what, $index, &$value, &$visited): void {
+        $this->loopOnResource($resource[self::NAME_INDEX], function(array $parent, string $name) use ($permission, $index, &$value, &$visited): void {
             $visited[] = $name;
-            if(null === $value && isset($parent[$index][$what])) {
-                $value = $parent[$index][$what];
+            if(null === $value && isset($parent[$index][$permission])) {
+                $value = $parent[$index][$permission];
                 unset($visited);
             }                
         });
@@ -732,21 +732,21 @@ class SimpleAcl implements AclInterface
                 \krsort($visited);
                 $exception = new PermissionNotFoundException(\sprintf("This %s '%s' is not registred into resource '%s' neither into one of its parent '%s'",
                     $type,
-                    $what,
+                    $permission,
                     $resource[self::NAME_INDEX],
                     \implode(", ", $visited)));
-                $exception->setPermission($what);
+                $exception->setPermission($permission);
                 
                 throw $exception;
             }
-            $exception = new PermissionNotFoundException("This {$type} '{$what}' is not registered into resource '{$resource[self::NAME_INDEX]}'");
-            $exception->setPermission($what);
+            $exception = new PermissionNotFoundException("This {$type} '{$permission}' is not registered into resource '{$resource[self::NAME_INDEX]}'");
+            $exception->setPermission($permission);
             
             throw $exception;
         }
 
         if($this->pipeline)
-            $this->currentPipeline[$resource[self::NAME_INDEX]][$index][$what] = $value;
+            $this->currentPipeline[$resource[self::NAME_INDEX]][$index][$permission] = $value;
             
         return $value;
     }
@@ -844,17 +844,15 @@ class SimpleAcl implements AclInterface
     /**
      * Validate a resource name
      * 
-     * @param string $resource
+     * @param string|AclBindableInterface $resource
      *   Resource name
      *   
      * @throws \TypeError
      *   When neither a string or an AclBindableInterface component
-     * @throws InvalidArgumentException
-     *   When does not matche the pattern
      * @throws ResourceNotFoundException
      *   When not registered into the acl
      */
-    private function validateResourceName($resource): void
+    private function validateResource($resource): void
     {
         if(!isset($this->resourceChecked[$resource])) {
             if(!\is_string($resource) && !$resource instanceof AclBindableInterface)
