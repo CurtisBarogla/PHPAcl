@@ -34,16 +34,19 @@ interface AclBindableInterface
     
     /**
      * Update a user over a permission asked by the acl
-     * If true is returned, the permission will be updated depending of the resource behaviour
+     * If a boolean is returned, the permission will be updated depending of the resource behaviour
      * 
      * @param UserInterface $user
      *   User passed to the acl
      * @param string $permission
      *   Permission currently to verify
+     * @param bool $granted
+     *   If the current permission is currently granted
      * 
-     * @return bool
+     * @return bool|null
      *   Depending of the resource behaviour, will deny or grant an exceptional permission
+     *   Return null to make no update at all
      */
-    public function updateAclPermission(UserInterface $user, string $permission): bool;
+    public function updateAclPermission(UserInterface $user, string $permission, bool $granted): ?bool;
     
 }
