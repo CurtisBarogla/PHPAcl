@@ -189,8 +189,8 @@ class SimpleAcl implements AclInterface
     public function isAllowed(UserInterface $user, $resource, string $permission, ?\Closure $update = null): bool
     {
         if($resource instanceof AclBindableInterface) {
-            $update = function() use ($permission, $user, $resource) {
-                return $resource->updateAclPermission($user, $permission);
+            $update = function(UserInterface $user, bool $result) use ($permission, $resource) {
+                return $resource->updateAclPermission($user, $permission, $result);
             };
             $resource = $resource->getAclResourceName();
         }
@@ -221,12 +221,16 @@ class SimpleAcl implements AclInterface
         } else
             $mask = $attribute[$resource];
 
+        $result = (bool) ( ($mask & $required) === $required);
+        
         if(null === $update || $locked)
-            return (bool) ( ($mask & $required) === $required);
-
-        return ($this->acl[$resource][self::BEHAVIOUR_INDEX] === self::WHITELIST) 
-                        ? ((bool) ( ($mask & $required) === $required) || \Closure::bind($update, null)($user)) 
-                        : ((bool) ( ($mask & $required) === $required) && !\Closure::bind($update, null)($user));  
+            return $result;
+        
+        $update = ($this->acl[$resource][self::BEHAVIOUR_INDEX] === self::BLACKLIST) 
+                            ? !\Closure::bind($update, null)($user, $result) 
+                            : \Closure::bind($update, null)($user, $result);
+        
+        return (null !== $update) ? ($update || $result && $update) : $result;
     }
     
     /**
@@ -430,6 +434,7 @@ class SimpleAcl implements AclInterface
      *   Processor name
      * @param \Closure $action
      *   Action to execute
+     *   Takes as first parameter a user and as second an array of entries linked to this processor. Entry can be null
      */
     public function registerProcessor(string $processor, \Closure $action): void
     {
@@ -514,7 +519,7 @@ class SimpleAcl implements AclInterface
         });
         
         if($count >= self::MAX)
-            throw new \LogicException("Max permission allowed reached for resource '{$resource}'");
+            throw new \LogicException("Max permissions allowed reached for resource '{$resource}'");
 
         $setted = $pointed[self::PERMISSIONS_INDEX][$permission] = ($count === 0) ? 1 : 1 << $count;
         $pointed[self::ROOT_INDEX] |= $setted;

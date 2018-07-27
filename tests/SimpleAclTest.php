@@ -47,11 +47,24 @@ class SimpleAclTest extends AclTestCase
             ->addPermission("kek");
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user->expects($this->any())->method("getAttribute")->with(SimpleAcl::USER_ATTRIBUTE)->will($this->returnValue(null));
-        
+        $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
+        $bindable->expects($this->exactly(3))->method("getAclResourceName")->will($this->returnValue("FooResource"));
+        $bindable
+            ->expects($this->exactly(3))
+            ->method("updateAclPermission")
+            ->withConsecutive(
+                [$user, "foo", true],
+                [$user, "foo", true],
+                [$user, "moz", true]
+            )
+        ->will($this->onConsecutiveCalls(null, false, true));
         $this->assertTrue($acl->isAllowed($user, "BarResource", "moz"));
         $this->assertFalse($acl->isAllowed($user, "BarResource", "moz", function(UserInterface $user): bool {
             return true;
         }));
+        $this->assertTrue($acl->isAllowed($user, $bindable, "foo"));
+        $this->assertTrue($acl->isAllowed($user, $bindable, "foo"));
+        $this->assertFalse($acl->isAllowed($user, $bindable, "moz"));
         
         // Whitelist
         $acl = new SimpleAcl();
@@ -105,7 +118,15 @@ class SimpleAclTest extends AclTestCase
         
         $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
         $bindable->expects($this->exactly(3))->method("getAclResourceName")->will($this->returnValue("BarResource"));
-        $bindable->expects($this->once())->method("updateAclPermission")->with($user, "moz")->will($this->returnValue(true));
+        $bindable
+            ->expects($this->exactly(3))
+            ->method("updateAclPermission")
+            ->withConsecutive(
+                [$user, "foo", true],
+                [$user, "foo", true],
+                [$user, "moz", false]
+            )
+            ->will($this->onConsecutiveCalls(null, false, true));
         $this->assertNull($acl->pipeline());
         $this->assertFalse($acl->isAllowed($user, "FooResource", "moz", function(UserInterface $user): bool {
             return true;
@@ -114,7 +135,7 @@ class SimpleAclTest extends AclTestCase
             return true;
         }));
         $this->assertTrue($acl->isAllowed($user, $bindable, "foo"));
-        $this->assertTrue($acl->isAllowed($user, $bindable, "foo"));
+        $this->assertFalse($acl->isAllowed($user, $bindable, "foo"));
         $this->assertTrue($acl->isAllowed($user, $bindable, "moz"));
         $this->assertNull($acl->endPipeline());
         
@@ -482,7 +503,7 @@ class SimpleAclTest extends AclTestCase
     /**
      * @see \Ness\Component\Acl\SimpleAcl::changeBehaviour()
      */
-    public function testExceptionChangerBehaviourWhenBehaviourIsInvalid(): void
+    public function testExceptionChangeBehaviourWhenBehaviourIsInvalid(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage("Acl behaviour MUST be one of the value determined into the acl");
@@ -578,7 +599,7 @@ class SimpleAclTest extends AclTestCase
     public function testExceptionAddPermissionWhenLimitIsReached(): void
     {
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage("Max permission allowed reached for resource 'Foo'");
+        $this->expectExceptionMessage("Max permissions allowed reached for resource 'Foo'");
         
         $acl = new SimpleAcl();
         $acl->addResource("Foo");
