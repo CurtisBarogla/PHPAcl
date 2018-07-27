@@ -78,20 +78,20 @@ final class AclUser implements AclUserInterface
 
     /**
      * {@inheritDoc}
-     * @see \Ness\Component\User\UserInterface::getAttribute()
-     */
-    public function getAttribute(string $attribute)
-    {
-        return $this->user->getAttribute($attribute);
-    }
-
-    /**
-     * {@inheritDoc}
      * @see \Ness\Component\User\UserInterface::getAttributes()
      */
     public function getAttributes(): ?iterable
     {
         return $this->user->getAttributes();
+    }
+    
+    /**
+     * {@inheritDoc}
+     * @see \Ness\Component\User\UserInterface::getAttribute()
+     */
+    public function getAttribute(string $attribute)
+    {
+        return $this->user->getAttribute($attribute);
     }
 
     /**
