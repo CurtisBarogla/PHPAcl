@@ -78,7 +78,7 @@ class Resource implements ResourceInterface, \Serializable
      * Initialize a resource
      * 
      * @param string $name
-     *   Resource name. Must be compliant with rules of the acl to be called
+     *   Resource name
      * @param int $behaviour
      *   Resource behaviour. One of the const defined into the interface. By default will be setted to whitelist
      *   
@@ -160,6 +160,15 @@ class Resource implements ResourceInterface, \Serializable
         $user->setPermission($current);
         
         $this->actions = null;
+    }
+    
+    /**
+     * {@inheritDoc}
+     * @see \Ness\Component\Acl\Resource\ResourceInterface::getPermissions()
+     */
+    public function getPermissions(): array
+    {
+        return \array_keys($this->permissions);
     }
     
     /**

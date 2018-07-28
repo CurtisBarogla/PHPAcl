@@ -104,6 +104,20 @@ class ResourceTest extends AclTestCase
     }
     
     /**
+     * @see \Ness\Component\Acl\Resource\Resource::getPermissions()
+     */
+    public function testGetPermissions(): void
+    {
+        $resource = new Resource("Foo");
+        
+        $this->assertSame([], $resource->getPermissions());
+        
+        $resource->addPermission("foo")->addPermission("bar");
+        
+        $this->assertSame(["foo", "bar"], $resource->getPermissions());
+    }
+    
+    /**
      * @see \Ness\Component\Acl\Resource\Resource::getPermission()
      */
     public function testGetPermission(): void

@@ -13,7 +13,7 @@ declare(strict_types = 1);
 namespace Ness\Component\Acl\Resource;
 
 use Ness\Component\Acl\Exception\InvalidArgumentException;
-use Ness\Component\Acl\Resource\Loader\ResourceLoaderInterface;
+use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderInterface;
 
 /**
  * Extendable resource
@@ -35,7 +35,7 @@ class ExtendableResource extends Resource implements ExtendableResourceInterface
      * Initialize an extendable resource
      *
      * @param string $name
-     *   Resource name. Must be compliant with rules of the acl to be called
+     *   Resource name
      * @param int $behaviour
      *   Resource behaviour. One of the const defined into the interface. By default will be setted to whitelist
      * @param ResourceInterface|null $parent
@@ -68,7 +68,7 @@ class ExtendableResource extends Resource implements ExtendableResourceInterface
         $toReinject = \array_keys($this->permissions);
         $this->permissions = [];
         
-        foreach (\array_merge(\array_keys($resource->permissions), $toReinject) as $permission) {
+        foreach (\array_merge($resource->getPermissions(), $toReinject) as $permission) {
             try {
                 $this->addPermission($permission);
             } catch (\LogicException $e) {
@@ -142,7 +142,7 @@ class ExtendableResource extends Resource implements ExtendableResourceInterface
             return $resource;
         
         $extendable = new self($resource->getName(), $resource->getBehaviour());
-        foreach (\array_keys($resource->permissions) as $permission)
+        foreach ($resource->getPermissions() as $permission)
             $extendable->addPermission($permission);
         
         return $extendable;

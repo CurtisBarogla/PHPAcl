@@ -15,7 +15,7 @@ namespace NessTest\Component\Acl\Resource;
 use NessTest\Component\Acl\AclTestCase;
 use Ness\Component\Acl\Resource\ExtendableResourceInterface;
 use Ness\Component\Acl\Resource\ResourceInterface;
-use Ness\Component\Acl\Resource\Loader\ResourceLoaderInterface;
+use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderInterface;
 use Ness\Component\Acl\Resource\ExtendableResource;
 
 /**
@@ -37,7 +37,7 @@ class ExtendableResourceTest extends AclTestCase
         $parent = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $parent->expects($this->exactly(4))->method("getName")->will($this->returnValue("Foo"));
         $parent->expects($this->exactly(2))->method("getBehaviour")->will($this->returnValue(ResourceInterface::WHITELIST));
-        $parent->permissions = ["foo" => 1, "bar" => 2];
+        $parent->expects($this->exactly(2))->method("getPermissions")->will($this->returnValue(["foo", "bar"]));
         
         foreach ([new ExtendableResource("Bar", ResourceInterface::BLACKLIST), new ExtendableResource("Moz", ResourceInterface::WHITELIST, $parent)] as $resource) {
             if($resource->getName() === "Bar") {
@@ -153,6 +153,9 @@ class ExtendableResourceTest extends AclTestCase
         ], \iterator_to_array(ExtendableResource::generateParents($base, $loader)));
     }
     
+    /**
+     * @see \Ness\Component\Acl\Resource\ExtendableResource::buildFromBasicResource()
+     */
     public function testBuildFromBasicResource(): void
     {
         $extendable = $this->getMockBuilder(ExtendableResourceInterface::class)->getMock();
@@ -162,7 +165,7 @@ class ExtendableResourceTest extends AclTestCase
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();;
         $resource->expects($this->once())->method("getName")->will($this->returnValue("Foo"));
         $resource->expects($this->once())->method("getBehaviour")->will($this->returnValue(ResourceInterface::BLACKLIST));
-        $resource->permissions = ["foo" => 1, "bar" => 2];
+        $resource->expects($this->once())->method("getPermissions")->will($this->returnValue(["foo", "bar"]));  
         
         $extendable = ExtendableResource::buildFromBasicResource($resource);
         

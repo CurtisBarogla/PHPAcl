@@ -95,6 +95,14 @@ interface ResourceInterface
     public function to(AclUserInterface $user): void;
     
     /**
+     * Get all permissions declared into the resource
+     * 
+     * @return string[]
+     *   All permissions
+     */
+    public function getPermissions(): array;
+    
+    /**
      * Get the value of a/multiple permission
      * 
      * @param string|array $permission
