@@ -10,7 +10,7 @@ declare(strict_types = 1);
  *
  */
 
-namespace Ness\Component\Acl\Resource\Loader;
+namespace Ness\Component\Acl\Resource\Loader\Resource;
 
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\ResourceNotFoundException;
@@ -55,7 +55,7 @@ class ResourceLoaderCollection implements ResourceLoaderInterface
     
     /**
      * {@inheritDoc}
-     * @see \Ness\Component\Acl\Resource\Loader\ResourceLoaderInterface::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderInterface::load()
      */
     public function load(string $resource): ResourceInterface
     {

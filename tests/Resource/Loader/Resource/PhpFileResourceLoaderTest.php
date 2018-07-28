@@ -10,10 +10,10 @@ declare(strict_types = 1);
  *
  */
 
-namespace NessTest\Component\Acl\Resource\Loader;
+namespace NessTest\Component\Acl\Resource\Loader\Resource;
 
 use NessTest\Component\Acl\AclTestCase;
-use Ness\Component\Acl\Resource\Loader\PhpFileResourceLoader;
+use Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\ResourceNotFoundException;
 use Ness\Component\Acl\Exception\ParseErrorException;
@@ -34,7 +34,7 @@ class PhpFileResourceLoaderTest extends AclTestCase
      * 
      * @var string
      */
-    private const FIXTURES_DIRECTORY = __DIR__."/../../Fixtures/Resource/Loader/PhpFileResourceLoaderFixtures";
+    private const FIXTURES_DIRECTORY = __DIR__."/../../../Fixtures/Resource/Loader/PhpFileResourceLoaderFixtures";
     
     /**
      * Files considered exploitables by the loader tested
@@ -49,7 +49,7 @@ class PhpFileResourceLoaderTest extends AclTestCase
     ];
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\PhpFileResourceLoader::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::load()
      */
     public function testLoad(): void
     {
@@ -133,7 +133,7 @@ class PhpFileResourceLoaderTest extends AclTestCase
                     /**_____EXCEPTIONS_____**/
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\PhpFileResourceLoader::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::load()
      */
     public function testExceptionWhenAResourceCannotBeLoaded(): void
     {
@@ -146,7 +146,7 @@ class PhpFileResourceLoaderTest extends AclTestCase
     }
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\PhpFileResourceLoader::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::load()
      */
     public function testExceptionLoadWhenAFileDoesNotExist(): void
     {
@@ -160,7 +160,7 @@ class PhpFileResourceLoaderTest extends AclTestCase
     }
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\PhpFileResourceLoader::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::load()
      */
     public function testExceptionLoadWhenAnArrayFileContainsAnInvalidKey(): void
     {
@@ -175,7 +175,7 @@ class PhpFileResourceLoaderTest extends AclTestCase
     }
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\PhpFileResourceLoader::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::load()
      */
     public function testExceptionLoadWhenPermissionsKeyIsNotAnArray(): void
     {
@@ -190,7 +190,7 @@ class PhpFileResourceLoaderTest extends AclTestCase
     }
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\PhpFileResourceLoader::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::load()
      */
     public function testExceptionLoadWhenFileReturnAnInvalidType(): void
     {
@@ -205,7 +205,7 @@ class PhpFileResourceLoaderTest extends AclTestCase
     }
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\PhpFileResourceLoader::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::load()
      */
     public function testExceptionLoadWhenANativeResourceInstanceFileIsNotConcordantWithFilename(): void
     {
@@ -220,7 +220,7 @@ class PhpFileResourceLoaderTest extends AclTestCase
     }
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\PhpFileResourceLoader::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::load()
      */
     public function testExceptionLoadWhenAnInvalidTypeIsGivenAsResourceIntoAMultipleFileResource(): void
     {

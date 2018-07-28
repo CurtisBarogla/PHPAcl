@@ -10,7 +10,7 @@ declare(strict_types = 1);
  *
  */
 
-namespace Ness\Component\Acl\Resource\Loader;
+namespace Ness\Component\Acl\Resource\Loader\Resource;
 
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\ResourceNotFoundException;
@@ -77,7 +77,7 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
     
     /**
      * {@inheritDoc}
-     * @see \Ness\Component\Acl\Resource\Loader\ResourceLoaderInterface::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderInterface::load()
      */
     public function load(string $resource): ResourceInterface
     {   
@@ -188,6 +188,7 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
         if(!\is_array($fileValue) && !$fileValue instanceof ResourceInterface)
             throw new \LogicException("File '{$file}' does not return a value handled by this loaded. It must return an array or an instance of ResourceInterface");
             
+        // resource is an instance of ResourceInterface
         if($fileValue instanceof ResourceInterface) {
             if($name !== $fileValue->getName())
                 throw new \LogicException("Resource instance name '{$fileValue->getName()}' not concordant with filename '{$name}' into file '{$file}'");
@@ -197,6 +198,7 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
             return;
         }
         
+        // it a simple array representating the class. The file name is the resource name
         if(empty($fileValue) || !empty(\array_intersect_key(\array_flip(self::VALID_KEYS), $fileValue))) {
             $resource = $this->parse($file, $name, $fileValue);
             $this->loadables[$resource->getName()] = $resource;
@@ -204,12 +206,14 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
             return;
         }
         
+        // mix of ResourceInterface and arrays
         foreach ($fileValue as $index => $resource) {
             // we assume at this point that the index is the resource name
             if(\is_string($index)) {
                 $resource = $this->parse($file, $index, $resource);
                 $this->loadables[$resource->getName()] = $resource;
-            } else if($resource instanceof ResourceInterface)          
+            } else if($resource instanceof ResourceInterface)
+                // instance of ResourceInterface
                 $this->loadables[$resource->getName()] = $resource;
             else 
                 throw new \LogicException(\sprintf("Invalid value given into file '%s' as resource. MUST be an array indexed by the resource name or an instance of ResourceInterface. '%s' given",

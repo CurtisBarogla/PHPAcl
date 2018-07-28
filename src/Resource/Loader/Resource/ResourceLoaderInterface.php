@@ -10,7 +10,7 @@ declare(strict_types = 1);
  *
  */
 
-namespace Ness\Component\Acl\Resource\Loader;
+namespace Ness\Component\Acl\Resource\Loader\Resource;
 
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\ResourceNotFoundException;

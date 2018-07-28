@@ -10,13 +10,13 @@ declare(strict_types = 1);
  *
  */
 
-namespace NessTest\Component\Acl\Resource\Loader;
+namespace NessTest\Component\Acl\Resource\Loader\Resource;
 
 use NessTest\Component\Acl\AclTestCase;
-use Ness\Component\Acl\Resource\Loader\ResourceLoaderInterface;
+use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderInterface;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\ResourceNotFoundException;
-use Ness\Component\Acl\Resource\Loader\ResourceLoaderCollection;
+use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderCollection;
 
 /**
  * ResourceLoaderCollection testcase
@@ -30,7 +30,7 @@ class ResourceLoaderCollectionTest extends AclTestCase
 {
 
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\ResourceLoaderCollection::addLoader()
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderCollection::addLoader()
      */
     public function testAddLoader(): void
     {
@@ -40,7 +40,7 @@ class ResourceLoaderCollectionTest extends AclTestCase
     }
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\ResourceLoaderCollection::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderCollection::load()
      */
     public function testLoad(): void
     {
@@ -63,7 +63,7 @@ class ResourceLoaderCollectionTest extends AclTestCase
                     /**_____EXCEPTIONS_____**/
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\ResourceLoaderCollection::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderCollection::load()
      */
     public function testExceptionLoadWhenNoResourceHasBeenFound(): void
     {
