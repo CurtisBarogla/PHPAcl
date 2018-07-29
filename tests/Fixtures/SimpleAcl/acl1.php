@@ -14,6 +14,4 @@ $this
     ->addResource("FooResource")
     ->addPermission("foo")
     ->addPermission("bar")
-    ->wrapProcessor("FooProcessor")
-        ->addEntry("FooEntry", ["foo", "bar"])
-    ->endWrapProcessor();
+    ->addEntry("FooEntry", ["foo", "bar"]);

@@ -36,13 +36,6 @@ class SimpleAcl implements AclInterface
     private $currentResource = null;
     
     /**
-     * Current wrapped entries
-     * 
-     * @var string|null
-     */
-    private $currentWrapProcessor = null;
-    
-    /**
      * Current wrap permission/entry
      * 
      * @var array|null
@@ -113,25 +106,11 @@ class SimpleAcl implements AclInterface
     private const BEHAVIOUR_INDEX = "behaviour";
     
     /**
-     * Processors index
-     * 
-     * @var string
-     */
-    private const PROCESS_INDEX = "processors";
-    
-    /**
      * Resource parent index
      *
      * @var string
      */
     private const PARENT_INDEX = "parent";
-    
-    /**
-     * Root permission index
-     * 
-     * @var string
-     */
-    private const ROOT_INDEX = "root";
     
     /**
      * All permissions are granted be default and be denied
@@ -208,10 +187,9 @@ class SimpleAcl implements AclInterface
         
         $locked = false;
         if(!isset($attribute[$resource])) {
-            $mask = ($this->acl[$resource][self::BEHAVIOUR_INDEX] === self::BLACKLIST) ? $this->acl[$resource][self::ROOT_INDEX] : 0;
+            $mask = ($this->acl[$resource][self::BEHAVIOUR_INDEX] === self::BLACKLIST) ? $this->acl[$resource][self::ENTRIES_INDEX]["ROOT"] : 0;
             foreach ($this->processors as $name => $processor) {
-                $processables = $this->combineProcessable($this->acl[$resource], $name);
-                $processor->call($this->getProcessorAclWrapper($mask, $locked, $resource), $user, $processables);  
+                $processor->call($this->getProcessorAclWrapper($mask, $locked, $resource), $user);  
                 if($locked)
                     break;
             }
@@ -434,7 +412,8 @@ class SimpleAcl implements AclInterface
      *   Processor name
      * @param \Closure $action
      *   Action to execute
-     *   Takes as first parameter a user and as second an array of entries linked to this processor. Entry can be null
+     *   Takes as parameter the user. $this is reassign to use grant and deny methods
+     *   @see \Ness\Component\Acl\SimpleAcl::getProcessorAclWrapper()
      */
     public function registerProcessor(string $processor, \Closure $action): void
     {
@@ -472,10 +451,9 @@ class SimpleAcl implements AclInterface
         $this->acl[$resource][self::PERMISSIONS_INDEX] = null;
         $this->acl[$resource][self::ENTRIES_INDEX] = null;
         $this->acl[$resource][self::BEHAVIOUR_INDEX] = (null !== $parent) ? $this->acl[$parent][self::BEHAVIOUR_INDEX] : $this->behaviour;
-        $this->acl[$resource][self::PROCESS_INDEX] = null;
         $this->acl[$resource][self::PARENT_INDEX] = $parent;
-        $this->acl[$resource][self::ROOT_INDEX] = (null !== $parent) ? $this->acl[$parent][self::ROOT_INDEX] : 0;
-
+        $this->acl[$resource][self::ENTRIES_INDEX]["ROOT"] = (null !== $parent) ? $this->acl[$parent][self::ENTRIES_INDEX]["ROOT"] : 0;
+        
         $this->currentResource = $resource;
         
         return $this;
@@ -520,26 +498,8 @@ class SimpleAcl implements AclInterface
         
         if($count >= self::MAX)
             throw new \LogicException("Max permissions allowed reached for resource '{$resource}'");
-
-        $setted = $pointed[self::PERMISSIONS_INDEX][$permission] = ($count === 0) ? 1 : 1 << $count;
-        $pointed[self::ROOT_INDEX] |= $setted;
-        $this->acl[$resource][self::ENTRIES_INDEX]["ROOT"] = $pointed[self::ROOT_INDEX];
         
-        return $this;
-    }
-    
-    /**
-     * Wrap all further registrated entries to be executed by a processor
-     * 
-     * @param string $processor
-     *   Processor identifier
-     * 
-     * @return self
-     *   Fluent
-     */
-    public function wrapProcessor(string $processor): self
-    {
-        $this->currentWrapProcessor = $processor; 
+        $this->acl[$resource][self::ENTRIES_INDEX]["ROOT"] |= $pointed[self::PERMISSIONS_INDEX][$permission] = ($count === 0) ? 1 : 1 << $count;
         
         return $this;
     }
@@ -583,22 +543,6 @@ class SimpleAcl implements AclInterface
         }
         
         $pointed[self::ENTRIES_INDEX][$entry] = $value;
-        
-        if(null !== $this->currentWrapProcessor)
-            $pointed[self::PROCESS_INDEX][$this->currentWrapProcessor][] = $entry;
-        
-        return $this;
-    }
-    
-    /**
-     * Finalize registration of wrapped entries
-     * 
-     * @return self
-     *   Fluent
-     */
-    public function endWrapProcessor(): self
-    {
-        $this->currentWrapProcessor = null;
         
         return $this;
     }
@@ -789,39 +733,6 @@ class SimpleAcl implements AclInterface
             }
             $action->call($this, $last, $last[self::NAME_INDEX]);
         }
-    }
-    
-    /**
-     * Combine all rules processables from a resource and its parents
-     * 
-     * @param array $resource
-     *   Resource to get all processables
-     * @param string $processor
-     *   Processor identifier
-     * 
-     * @return array|null
-     *   All processables or null if no processable found for the given processor
-     */
-    private function combineProcessable(array $resource, string $processor): ?array
-    {
-        if(null === $resource[self::PARENT_INDEX]) {
-            if(!isset($resource[self::PROCESS_INDEX][$processor]))
-                return null;
-            
-            return $resource[self::PROCESS_INDEX][$processor];
-        }
-            
-        $processables = $resource[self::PROCESS_INDEX][$processor] ?? null;
-        
-        $this->loopOnResource($resource[self::NAME_INDEX], function(array $parent, string $name) use (&$processables, $processor): void {
-            if(isset($parent[self::PROCESS_INDEX][$processor])) {
-                foreach ($parent[self::PROCESS_INDEX][$processor] as $toProcess) {
-                    $processables[] = $toProcess;
-                }
-            }
-        });
-        
-        return (null !== $processables) ? \array_unique($processables) : null;
     }
     
     /**

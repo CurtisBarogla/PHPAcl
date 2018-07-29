@@ -72,9 +72,7 @@ class SimpleAclTest extends AclTestCase
             ->addPermission("foo")
             ->addPermission("bar")
             ->addPermission("moz")
-            ->wrapProcessor("FooProcessor")
-                ->addEntry("FooEntry", ["foo", "bar"])
-            ->endWrapProcessor();
+            ->addEntry("FooEntry", ["foo", "bar"]);
         $acl->addResource("BarResource", "FooResource")
             ->addPermission("loz")
             ->addPermission("kek");
@@ -127,6 +125,7 @@ class SimpleAclTest extends AclTestCase
                 [$user, "moz", false]
             )
             ->will($this->onConsecutiveCalls(null, false, true));
+        
         $this->assertNull($acl->pipeline());
         $this->assertFalse($acl->isAllowed($user, "FooResource", "moz", function(UserInterface $user): bool {
             return true;
@@ -246,7 +245,7 @@ class SimpleAclTest extends AclTestCase
         $acl = new SimpleAcl();
         
         $acl->addResource("Foo")->addPermission("foo")->addPermission("bar")->end();
-        $acl->addResource("Bar", "Foo")->addPermission("moz")->addPermission("poz")->wrapProcessor("FooProcessor")->addEntry("Foo", ["foo", "bar"])->endWrapProcessor()->end();
+        $acl->addResource("Bar", "Foo")->addPermission("moz")->addPermission("poz")->addEntry("Foo", ["foo", "bar"])->end();
         
         $json = \json_encode([
             "map"       =>  $this->extractAclProperty($acl, "acl"),
@@ -293,9 +292,9 @@ class SimpleAclTest extends AclTestCase
         
         $this->assertNull($acl->buildFromFiles($files));
         $this->assertSame([
-            "FooResource"   =>  ["name" => "FooResource", "permissions" => ["foo" => 1, "bar" => 2], "entries" => ["ROOT" => 3, "FooEntry" => 3], "behaviour" => 1, "processors" => ["FooProcessor" => ["FooEntry"]], "parent" => null, "root" => 3],
-            "BarResource"   =>  ["name" => "BarResource", "permissions" => ["moz" => 4, "poz" => 8], "entries" => ["ROOT" => 15, "FooEntry" => 15], "behaviour" => 1, "processors" => null, "parent" => "FooResource", "root" => 15],
-            "MozResource"   =>  ["name" => "MozResource", "permissions" => null, "entries" => null, "behaviour" => 1, "processors" => null, "parent" => "BarResource", "root" => 15]
+            "FooResource"   =>  ["name" => "FooResource", "permissions" => ["foo" => 1, "bar" => 2], "entries" => ["ROOT" => 3, "FooEntry" => 3], "behaviour" => 1, "parent" => null],
+            "BarResource"   =>  ["name" => "BarResource", "permissions" => ["moz" => 4, "poz" => 8], "entries" => ["ROOT" => 15, "FooEntry" => 15], "behaviour" => 1, "parent" => "FooResource"],
+            "MozResource"   =>  ["name" => "MozResource", "permissions" => null, "entries" => ["ROOT" => 15], "behaviour" => 1, "parent" => "BarResource"]
         ], $this->extractAclProperty($acl, "acl"));
     }
     
@@ -335,8 +334,8 @@ class SimpleAclTest extends AclTestCase
         $this->assertSame($acl, $acl->addResource("Bar", "Foo"));
         
         $this->assertSame([
-            "Foo"   =>  ["name" => "Foo", "permissions" => null, "entries" => null, "behaviour" => 1, "processors" => null, "parent" => null, "root" => 0],
-            "Bar"   =>  ["name" => "Bar", "permissions" => null, "entries" => null, "behaviour" => 1, "processors" => null, "parent" => "Foo", "root" => 0]
+            "Foo"   =>  ["name" => "Foo", "permissions" => null, "entries" => ["ROOT" => 0], "behaviour" => 1, "parent" => null],
+            "Bar"   =>  ["name" => "Bar", "permissions" => null, "entries" => ["ROOT" => 0], "behaviour" => 1, "parent" => "Foo"]
         ], $this->extractAclProperty($acl, "acl"));
         $this->assertSame("Bar", $this->extractAclProperty($acl, "currentResource"));
         $this->assertNull($acl->end());
@@ -360,24 +359,10 @@ class SimpleAclTest extends AclTestCase
         $this->assertSame($acl, $acl->addResource("Moz", "Foo")->addPermission("poz"));
         
         $this->assertSame([
-            "Bar"   =>  ["name" => "Bar", "permissions" => ["bar" => 1], "entries" => ["ROOT" => 1], "behaviour" => 0, "processors" => null, "parent" => null, "root" => 1],
-            "Foo"   =>  ["name" => "Foo", "permissions" => ["foo" => 1, "bar" => 2, "moz" => 4], "entries" => ["ROOT" => 7], "behaviour" => 0, "processors" => null, "parent" => null, "root" => 7],
-            "Moz"   =>  ["name" => "Moz", "permissions" => ["poz" => 8], "entries" => ["ROOT" => 15], "behaviour" => 0, "processors" => null, "parent" => "Foo", "root" => 15]
+            "Bar"   =>  ["name" => "Bar", "permissions" => ["bar" => 1], "entries" => ["ROOT" => 1], "behaviour" => 0, "parent" => null],
+            "Foo"   =>  ["name" => "Foo", "permissions" => ["foo" => 1, "bar" => 2, "moz" => 4], "entries" => ["ROOT" => 7], "behaviour" => 0, "parent" => null],
+            "Moz"   =>  ["name" => "Moz", "permissions" => ["poz" => 8], "entries" => ["ROOT" => 15], "behaviour" => 0, "parent" => "Foo"]
         ], $this->extractAclProperty($acl, "acl"));
-    }
-    
-    /**
-     * @see \Ness\Component\Acl\SimpleAcl::wrapProcessor()
-     * @see \Ness\Component\Acl\SimpleAcl::endWrapProcessor()
-     */
-    public function testWrapProcessorAndEndWrapProcessor(): void
-    {
-        $acl = new SimpleAcl();
-        
-        $this->assertSame($acl, $acl->wrapProcessor("Foo"));
-        $this->assertSame("Foo", $this->extractAclProperty($acl, "currentWrapProcessor"));
-        $this->assertSame($acl, $acl->endWrapProcessor());
-        $this->assertNull($this->extractAclProperty($acl, "currentWrapProcessor"));
     }
     
     /**
@@ -390,26 +375,24 @@ class SimpleAclTest extends AclTestCase
         $acl->addResource("Foo")
             ->addPermission("foo")
             ->addPermission("bar")
-            ->wrapProcessor("FooProcessor")
-                ->addEntry("FooEntry", ["foo", "bar"])
-                ->addEntry("BarEntry", ["foo"])
-            ->endWrapProcessor()
+            ->addEntry("FooEntry", ["foo", "bar"])
+            ->addEntry("BarEntry", ["foo"])
         ->end();
         $acl->addResource("Bar", "Foo")
             ->addPermission("moz")
             ->addPermission("poz")
-                ->addEntry("BarEntry", ["moz", "poz", "foo", "bar"])
+            ->addEntry("BarEntry", ["moz", "poz", "foo", "bar"])
         ->end();
         $acl->addResource("Moz", "Bar")
             ->addPermission("loz")
             ->addPermission("kek")
-                ->addEntry("MozEntry", ["BarEntry", "loz", "kek"])
+            ->addEntry("MozEntry", ["BarEntry", "loz", "kek"])
         ->end();
         
         $this->assertSame([
-            "Foo"   =>  ["name" => "Foo", "permissions" => ["foo" => 1, "bar" => 2], "entries" => ["ROOT" => 3, "FooEntry" => 3, "BarEntry" => 1], "behaviour" => 1, "processors" => ["FooProcessor" => ["FooEntry", "BarEntry"]], "parent" => null, "root" => 3],
-            "Bar"   =>  ["name" => "Bar", "permissions" => ["moz" => 4, "poz" => 8], "entries" => ["ROOT" => 15, "BarEntry" => 15], "behaviour" => 1, "processors" => null, "parent" => "Foo", "root" => 15],
-            "Moz"   =>  ["name" => "Moz", "permissions" => ["loz" => 16, "kek" => 32], "entries" => ["ROOT" => 63, "MozEntry" => 63], "behaviour" => 1, "processors" => null, "parent" => "Bar", "root" => 63],
+            "Foo"   =>  ["name" => "Foo", "permissions" => ["foo" => 1, "bar" => 2], "entries" => ["ROOT" => 3, "FooEntry" => 3, "BarEntry" => 1], "behaviour" => 1, "parent" => null],
+            "Bar"   =>  ["name" => "Bar", "permissions" => ["moz" => 4, "poz" => 8], "entries" => ["ROOT" => 15, "BarEntry" => 15], "behaviour" => 1, "parent" => "Foo"],
+            "Moz"   =>  ["name" => "Moz", "permissions" => ["loz" => 16, "kek" => 32], "entries" => ["ROOT" => 63, "MozEntry" => 63], "behaviour" => 1, "parent" => "Bar"],
         ], $this->extractAclProperty($acl, "acl"));
     }
     
