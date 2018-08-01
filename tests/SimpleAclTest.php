@@ -12,13 +12,15 @@ declare(strict_types = 1);
 
 namespace NessTest\Component\Acl;
 
+use PHPUnit\Framework\TestCase;
 use Ness\Component\Acl\SimpleAcl;
 use Ness\Component\Acl\Exception\InvalidArgumentException;
 use Ness\Component\Acl\Exception\ResourceNotFoundException;
-use Psr\SimpleCache\CacheInterface;
+use Ness\Component\Acl\Exception\EntryNotFoundException;
 use Ness\Component\User\UserInterface;
-use Ness\Component\Acl\AclBindableInterface;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
+use Ness\Component\Acl\AclBindableInterface;
+use Psr\SimpleCache\CacheInterface;
 
 /**
  * SimpleAcl testcase
@@ -28,185 +30,213 @@ use Ness\Component\Acl\Exception\PermissionNotFoundException;
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-class SimpleAclTest extends AclTestCase
+class SimpleAclTest extends TestCase
 {
     
     /**
      * @see \Ness\Component\Acl\SimpleAcl::isAllowed()
+     * @see \Ness\Component\Acl\SimpleAcl::multi()
+     * @see \Ness\Component\Acl\SimpleAcl::clearMulti()
      */
-    public function testIsAllowed(): void
+    public function testIsAllowedWithUserWithLockedResource(): void
     {
-        // Blacklist
-        $acl = new SimpleAcl(SimpleAcl::BLACKLIST);
-        $acl->addResource("FooResource")
-            ->addPermission("foo")
-            ->addPermission("bar")
-            ->addPermission("moz");
-        $acl->addResource("BarResource", "FooResource")
-            ->addPermission("loz")
-            ->addPermission("kek");
-        $user = $this->getMockBuilder(UserInterface::class)->getMock();
-        $user->expects($this->any())->method("getAttribute")->with(SimpleAcl::USER_ATTRIBUTE)->will($this->returnValue(null));
-        $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
-        $bindable->expects($this->exactly(3))->method("getAclResourceName")->will($this->returnValue("FooResource"));
-        $bindable
-            ->expects($this->exactly(3))
-            ->method("updateAclPermission")
-            ->withConsecutive(
-                [$user, "foo", true],
-                [$user, "foo", true],
-                [$user, "moz", true]
-            )
-        ->will($this->onConsecutiveCalls(null, false, true));
-        $this->assertTrue($acl->isAllowed($user, "BarResource", "moz"));
-        $this->assertFalse($acl->isAllowed($user, "BarResource", "moz", function(UserInterface $user): bool {
-            return true;
-        }));
-        $this->assertTrue($acl->isAllowed($user, $bindable, "foo"));
-        $this->assertTrue($acl->isAllowed($user, $bindable, "foo"));
-        $this->assertFalse($acl->isAllowed($user, $bindable, "moz"));
-        
-        // Whitelist
-        $acl = new SimpleAcl();
-        $acl->addResource("FooResource")
-            ->addPermission("foo")
-            ->addPermission("bar")
-            ->addPermission("moz")
-            ->addEntry("FooEntry", ["foo", "bar"]);
-        $acl->addResource("BarResource", "FooResource")
-            ->addPermission("loz")
-            ->addPermission("kek");
-        $acl->registerProcessor("ROOTPROCESSOR", function(UserInterface $user): void {
-            $this->grant("NOTFOUND");
-            $this->deny("NOTFOUND");
-            
-            if($user->getName() === "ROOTUSER" && $this->getBehaviour() === SimpleAcl::WHITELIST) {
-                $this->grant("ROOT");
-                $this->lock();
-                return;
-            }
-            
-            $this->grant("ROOT");
-            
-            if($user->getName() === "TODENYUSER") {
-                $this->deny("ROOT");
-                $this->lock();
-            }
-            
-            $this->grant("ROOT");
-        });
-        $acl->registerProcessor("FooProcessor", function(UserInterface $user): void {
-            $this->deny("ROOT");
-            $this->grant("FooEntry");  
-        });
-        
-        // Resource setted into attribute
+        $barResource = $this->getMockBuilder(AclBindableInterface::class)->getMock();
+        $barResource->expects($this->exactly(2))->method("getAclResourceName")->will($this->returnValue("BarResource"));
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user
             ->expects($this->exactly(5))
             ->method("getAttribute")
-            ->with(SimpleAcl::USER_ATTRIBUTE)
-            ->will($this->onConsecutiveCalls(
-                ["<FooResource>"    =>  3],
-                ["FooResource"      =>  0],
-                ["BarResource"      =>  3],
-                ["BarResource"      =>  3],
-                ["BarResource"      =>  3]
-        ));
+            ->with(SimpleAcl::ACL_USER_ATTRIBUTE)
+            ->will($this->returnValue(["<FooResource>" => 3, "<BarResource>" => 7]));
         
-        $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
-        $bindable->expects($this->exactly(3))->method("getAclResourceName")->will($this->returnValue("BarResource"));
-        $bindable
-            ->expects($this->exactly(3))
-            ->method("updateAclPermission")
-            ->withConsecutive(
-                [$user, "foo", true],
-                [$user, "foo", true],
-                [$user, "moz", false]
-            )
-            ->will($this->onConsecutiveCalls(null, false, true));
+        $acl = new SimpleAcl();
+        $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->addPermission("moz")->endResource();
+        $acl->addResource("BarResource", "FooResource")->addPermission("loz")->endResource();
         
-        $this->assertNull($acl->pipeline());
-        $this->assertFalse($acl->isAllowed($user, "FooResource", "moz", function(UserInterface $user): bool {
-            return true;
+        $this->assertNull($acl->multi());
+        $this->assertTrue($acl->isAllowed($user, "FooResource", "foo", function(): bool {
+            return false;
         }));
-        $this->assertTrue($acl->isAllowed($user, "FooResource", "moz", function(UserInterface $user): bool {
-            return true;
-        }));
-        $this->assertTrue($acl->isAllowed($user, $bindable, "foo"));
-        $this->assertFalse($acl->isAllowed($user, $bindable, "foo"));
-        $this->assertTrue($acl->isAllowed($user, $bindable, "moz"));
-        $this->assertNull($acl->endPipeline());
-        
+        $this->assertTrue($acl->isAllowed($user, "FooResource", "bar"));
+        $this->assertFalse($acl->isAllowed($user, "FooResource", "moz"));
+        $this->assertTrue($acl->isAllowed($user, $barResource, "moz"));
+        $this->assertFalse($acl->isAllowed($user, $barResource, "loz"));
+        $this->assertNull($acl->clearMulti());
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::isAllowed()
+     */
+    public function testIsAllowedWithUserWithNoAttribute(): void
+    {
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user
             ->expects($this->exactly(3))
             ->method("getAttribute")
-            ->will($this->onConsecutiveCalls(
-                null, 
-                [],
-                ["<FooResource>" => 7]
-        ));
-        $user
-            ->expects($this->exactly(3))
-            ->method("addAttribute")
-            ->withConsecutive(
-                [SimpleAcl::USER_ATTRIBUTE, []],
-                [SimpleAcl::USER_ATTRIBUTE, ["<FooResource>" => 7]],
-                [SimpleAcl::USER_ATTRIBUTE, ["<FooResource>" => 7, "<BarResource>" => 31]]
+            ->withConsecutive([SimpleAcl::ACL_USER_ATTRIBUTE])
+            ->will($this->onConsecutiveCalls(null, ["FooResource" => 15], ["FooResource" => 15, "BarResource" => 31]));
+        $user->expects($this->exactly(4))->method("addAttribute")->withConsecutive(
+            [SimpleAcl::ACL_USER_ATTRIBUTE, []],
+            [SimpleAcl::ACL_USER_ATTRIBUTE, ["FooResource" => 15]],
+            [SimpleAcl::ACL_USER_ATTRIBUTE, ["FooResource" => 15, "BarResource" => 31]],
+            [SimpleAcl::ACL_USER_ATTRIBUTE, ["FooResource" => 15, "BarResource" => 31, "MozResource" => 0]]
             );
-        $user->expects($this->exactly(2))->method("getName")->will($this->returnValue("ROOTUSER"));
+        
+        $acl = new SimpleAcl();
+        $acl->changeBehaviour(SimpleAcl::BLACKLIST);
+        $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->addPermission("moz")->addPermission("poz")->endResource();
+        $acl->addResource("BarResource", "FooResource")->addPermission("loz")->endResource();
+        $acl->changeBehaviour(SimpleAcl::WHITELIST);
+        $acl->addResource("MozResource")->addPermission("foo")->endResource();
         
         $this->assertTrue($acl->isAllowed($user, "FooResource", "foo"));
-        $this->assertTrue($acl->isAllowed($user, "BarResource", "foo"));
+        $this->assertTrue($acl->isAllowed($user, "BarResource", "loz"));
+        $this->assertFalse($acl->isAllowed($user, "MozResource", "foo"));
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::isAllowed()
+     */
+    public function testIsAllowedWithUserWithNoAttributeAndAProcessorLockingThePermission(): void
+    {
+        $barResource = $this->getMockBuilder(AclBindableInterface::class)->getMock();
+        $barResource->expects($this->once())->method("getAclResourceName")->will($this->returnValue("BarResource"));
+        $barResource->expects($this->never())->method("updateAclPermission");
         
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user
             ->expects($this->exactly(3))
             ->method("getAttribute")
-            ->will($this->onConsecutiveCalls(
-                null,
-                [],
-                ["<FooResource>" => 0]
-        ));
-        $user
-            ->expects($this->exactly(3))
-            ->method("addAttribute")
-            ->withConsecutive(
-                [SimpleAcl::USER_ATTRIBUTE, []],
-                [SimpleAcl::USER_ATTRIBUTE, ["<FooResource>" => 0]],
-                [SimpleAcl::USER_ATTRIBUTE, ["<FooResource>" => 0, "<BarResource>" => 0]]
-        );
-        
-        $user->expects($this->exactly(4))->method("getName")->will($this->returnValue("TODENYUSER"));
-        
-        $this->assertFalse($acl->isAllowed($user, "FooResource", "bar"));
-        $this->assertFalse($acl->isAllowed($user, "BarResource", "loz"));
-        
-        $user = $this->getMockBuilder(UserInterface::class)->getMock();
+            ->withConsecutive([SimpleAcl::ACL_USER_ATTRIBUTE])
+            ->will($this->onConsecutiveCalls(null, ["<FooResource>" => 15], ["<FooResource>" => 15, "<BarResource>" => 15]));
         $user
             ->expects($this->exactly(4))
-            ->method("getAttribute")
-            ->will($this->onConsecutiveCalls(
-                null,
-                [],
-                ["FooResource" => 3],
-                ["FooResource" => 3, "BarResource" => 3]
-        ));
-        $user
-            ->expects($this->exactly(3))
             ->method("addAttribute")
             ->withConsecutive(
-                [SimpleAcl::USER_ATTRIBUTE, []],
-                [SimpleAcl::USER_ATTRIBUTE, ["FooResource" => 3]],
-                [SimpleAcl::USER_ATTRIBUTE, ["FooResource" => 3, "BarResource" => 3]]
-        );
+                [SimpleAcl::ACL_USER_ATTRIBUTE, []],
+                [SimpleAcl::ACL_USER_ATTRIBUTE, ["<FooResource>"    => 15]],
+                [SimpleAcl::ACL_USER_ATTRIBUTE, ["<FooResource>"    => 15, "<BarResource>"    => 15]],
+                [SimpleAcl::ACL_USER_ATTRIBUTE, ["<FooResource>"    => 15, "<BarResource>"    => 15, "<MozResource>" => 2]]
+            );
         
-        $user->expects($this->exactly(4))->method("getName")->will($this->returnValue("LAMBDAUSER"));
+        $processor = function(UserInterface $user): void {
+            if($this->getBehaviour() === SimpleAcl::WHITELIST)
+                $this->grant("ROOT");
+            else 
+                $this->deny("foo");
+            $this->lock();
+        };
         
-        $this->assertTrue($acl->isAllowed($user, "FooResource", "foo"));
-        $this->assertTrue($acl->isAllowed($user, "BarResource", "bar"));
-        $this->assertFalse($acl->isAllowed($user, "BarResource", "loz"));
+        $acl = new SimpleAcl();
+        $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->addPermission("moz")->addPermission("poz")->endResource();
+        $acl->addResource("BarResource", "FooResource")->endResource();
+        $acl->changeBehaviour(SimpleAcl::BLACKLIST);
+        $acl->addResource("MozResource")->addPermission("foo")->addPermission("bar")->endResource();
+        $acl->registerProcessor("FooProcessor", $processor);
+        
+        $this->assertTrue($acl->isAllowed($user, "FooResource", "bar", function() {
+            return false;
+        }));
+        $this->assertTrue($acl->isAllowed($user, $barResource, "moz"));
+        $this->assertFalse($acl->isAllowed($user, "MozResource", "foo"));
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::isAllowed()
+     */
+    public function testIsAllowedWithAclBindableActingOnResourceBlacklist(): void
+    {
+        $user = $this->getMockBuilder(UserInterface::class)->getMock();
+        $user->expects($this->exactly(4))->method("getAttribute")->with(SimpleAcl::ACL_USER_ATTRIBUTE)->will($this->returnValue(["FooResource" => 7]));
+        
+        $resource = $this->getMockBuilder(AclBindableInterface::class)->getMock();
+        $resource->expects($this->exactly(4))->method("getAclResourceName")->will($this->returnValue("FooResource"));
+        $resource->expects($this->exactly(3))->method("updateAclPermission")->withConsecutive([$user, "foo", true])->will($this->onConsecutiveCalls(null, true, false));
+        
+        $acl = new SimpleAcl(SimpleAcl::BLACKLIST);
+        $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->addPermission("moz")->endResource();
+        
+        $this->assertTrue($acl->isAllowed($user, $resource, "foo"));
+        $this->assertFalse($acl->isAllowed($user, $resource, "foo"));
+        $this->assertTrue($acl->isAllowed($user, $resource, "foo"));
+        $this->assertFalse($acl->isAllowed($user, $resource, "foo", function(UserInterface $user, AclBindableInterface $resource): ?bool {
+            return true;
+        }));
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::isAllowed()
+     */
+    public function testIsAllowedWithAclBindableActingOnResourceWhitelist(): void
+    {
+        $user = $this->getMockBuilder(UserInterface::class)->getMock();
+        $user->expects($this->exactly(4))->method("getAttribute")->with(SimpleAcl::ACL_USER_ATTRIBUTE)->will($this->returnValue(["FooResource" => 0]));
+        
+        $resource = $this->getMockBuilder(AclBindableInterface::class)->getMock();
+        $resource->expects($this->exactly(4))->method("getAclResourceName")->will($this->returnValue("FooResource"));
+        $resource->expects($this->exactly(3))->method("updateAclPermission")->withConsecutive([$user, "foo", false])->will($this->onConsecutiveCalls(null, true, false));
+        
+        $acl = new SimpleAcl();
+        $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->addPermission("moz")->endResource();
+        
+        $ref = null;
+        
+        $this->assertFalse($acl->isAllowed($user, $resource, "foo"));
+        $this->assertTrue($acl->isAllowed($user, $resource, "foo"));
+        $this->assertFalse($acl->isAllowed($user, $resource, "foo"));
+        $this->assertTrue($acl->isAllowed($user, $resource, "foo", function(UserInterface $user, AclBindableInterface $resource) use (&$ref): ?bool {
+            $ref = $resource;
+            return true;
+        }));
+        
+        $this->assertSame($resource, $ref);
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::isAllowed()
+     * @see \Ness\Component\Acl\SimpleAcl::getProcessables()
+     */
+    public function testIsAllowedExtractProcessablesIntoProcessor(): void
+    {
+        $ref = null;
+        
+        $acl = new SimpleAcl();
+        $acl
+        ->addResource("FooResource")
+            ->addPermission("foo")
+            ->addPermission("bar")
+            ->wrapProcessor("FooProcessor")
+                ->addEntry("FooEntry", ["foo"])
+                ->addEntry("BarEntry", ["bar"])
+            ->endProcessor()
+            ->addEntry("FooEntry", ["bar"])
+        ->endResource();
+        $acl
+        ->addResource("BarResource", "FooResource")
+            ->addPermission("moz")
+            ->addPermission("poz")
+            ->wrapProcessor("FooProcessor")
+                ->addEntry("FooEntry", ["FooEntry", "moz"])
+                ->addEntry("BarEntry", ["BarEntry", "poz"])
+            ->endProcessor()
+            ->addEntry("FooEntry", ["moz", "poz"])
+        ->endResource();
+        
+        $processor = function(UserInterface $user) use (&$ref) {
+            $ref = $this->getEntries();
+        };
+        $acl->registerProcessor("FooProcessor", $processor);
+        
+        $this->assertFalse($acl->isAllowed($this->getMockBuilder(UserInterface::class)->getMock(), "FooResource", "foo"));
+        $this->assertSame([
+            "FooEntry"  =>  1,
+            "BarEntry"  =>  2
+        ], $ref);
+        $this->assertFalse($acl->isAllowed($this->getMockBuilder(UserInterface::class)->getMock(), "BarResource", "foo"));
+        $this->assertSame([
+            "FooEntry"  =>  1|4,
+            "BarEntry"  =>  2|8
+        ], $ref);
     }
     
     /**
@@ -214,20 +244,17 @@ class SimpleAclTest extends AclTestCase
      */
     public function testCache(): void
     {
-        if(!\interface_exists("Psr\SimpleCache\CacheInterface"))
-            self::markTestSkipped("PSR-16 Not installed");
-
         $cache = $this->getMockBuilder(CacheInterface::class)->getMock();
         
         $acl = new SimpleAcl();
+        $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->wrapProcessor("FooProcessor")->addEntry("FooEntry", ["foo", "bar"])->endProcessor()->addEntry("FooEntry", ["foo"])->endResource();
+        $acl->addResource("BarResource", "FooResource")->endResource();
+        $acl->changeBehaviour(SimpleAcl::BLACKLIST);
+        $acl->addResource("MozResource")->addPermission("foo")->addPermission("bar")->endResource();
+        $acl->changeBehaviour(SimpleAcl::WHITELIST);
         
-        $acl->addResource("Foo")->addPermission("foo")->addPermission("bar")->end();
-        $acl->addResource("Bar", "Foo")->addPermission("moz")->addPermission("poz")->end();
-        
-        $cache->expects($this->once())->method("set")->with(SimpleAcl::CACHE_KEY, \json_encode([
-            "map"       =>  $this->extractAclProperty($acl, "acl"),
-            "behaviour" =>  $this->extractAclProperty($acl, "behaviour")
-        ]))->will($this->returnValue(true));
+        $setToCache = \json_encode($this->extractProperties($acl, ["acl", "behaviour"]));
+        $cache->expects($this->once())->method("set")->with(SimpleAcl::CACHE_IDENTIFIER, $setToCache)->will($this->returnValue(true));
         
         $this->assertTrue($acl->cache($cache));
     }
@@ -237,65 +264,69 @@ class SimpleAclTest extends AclTestCase
      */
     public function testBuildFromCache(): void
     {
-        if(!\interface_exists("Psr\SimpleCache\CacheInterface"))
-            self::markTestSkipped("PSR-16 Not installed");
-        
         $cache = $this->getMockBuilder(CacheInterface::class)->getMock();
         
         $acl = new SimpleAcl();
+        $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->wrapProcessor("FooProcessor")->addEntry("FooEntry", ["foo", "bar"])->endProcessor()->addEntry("FooEntry", ["foo"])->endResource();
+        $acl->addResource("BarResource", "FooResource")->endResource();
+        $acl->changeBehaviour(SimpleAcl::BLACKLIST);
+        $acl->addResource("MozResource")->addPermission("foo")->addPermission("bar")->endResource();
+        $acl->changeBehaviour(SimpleAcl::WHITELIST);
         
-        $acl->addResource("Foo")->addPermission("foo")->addPermission("bar")->end();
-        $acl->addResource("Bar", "Foo")->addPermission("moz")->addPermission("poz")->addEntry("Foo", ["foo", "bar"])->end();
+        $cachedAcl = \json_encode($this->extractProperties($acl, ["acl", "behaviour"]));
         
-        $json = \json_encode([
-            "map"       =>  $this->extractAclProperty($acl, "acl"),
-            "behaviour" =>  $this->extractAclProperty($acl, "behaviour")
-        ]);
+        $expected = $acl;
         
-        $cache->expects($this->exactly(2))->method("get")->withConsecutive([SimpleAcl::CACHE_KEY])->will($this->onConsecutiveCalls(null, $json));
-        
-        $newAcl = new SimpleAcl();
-        
-        $this->assertFalse($newAcl->buildFromCache($cache));
-        $this->assertTrue($newAcl->buildFromCache($cache));
-        
-        $this->assertEquals($newAcl, $acl);
-    }
-    
-    /**
-     * @see \Ness\Component\Acl\SimpleAcl::invalidateCache()
-     */
-    public function testInvalidateCache(): void
-    {
-        if(!\interface_exists("Psr\SimpleCache\CacheInterface"))
-            self::markTestSkipped("PSR-16 Not installed");
-            
-        $cache = $this->getMockBuilder(CacheInterface::class)->getMock();
-        $cache->expects($this->once())->method("delete")->with(SimpleAcl::CACHE_KEY);
+        $cache->expects($this->exactly(2))->method("get")->with(SimpleAcl::CACHE_IDENTIFIER)->will($this->onConsecutiveCalls(null, $cachedAcl));
         
         $acl = new SimpleAcl();
-        
-        $this->assertNull($acl->invalidateCache($cache));
+
+        $this->assertNull($this->extractProperties($acl, ["acl"])["acl"]);
+        $this->assertFalse($acl->buildFromCache($cache));
+        $this->assertTrue($acl->buildFromCache($cache));
+        $this->assertEquals($expected, $acl);
     }
     
     /**
-     * @see \Ness\Component\Acl\SimpleAcl::buildFromFile()
+     * @see \Ness\Component\Acl\SimpleAcl::buildFromFiles()
      */
-    public function testBuildFromFile(): void
+    public function testBuildFromFiles(): void
     {
+        $baseDir = __DIR__."/Fixtures/SimpleAcl/Valid";
         $files = [
-            __DIR__."/Fixtures/SimpleAcl/acl1.php",
-            __DIR__."/Fixtures/SimpleAcl/Directory"
+            $baseDir."/Acl1.php",
+            $baseDir."/Directory"
         ];
         
         $acl = new SimpleAcl();
         
         $this->assertNull($acl->buildFromFiles($files));
+        $properties = $this->extractProperties($acl, ["behaviour", "acl", "currentProcessor", "currentResource"]);
+        $this->assertNull($properties["currentResource"]);
+        $this->assertNull($properties["currentProcessor"]);
+        $this->assertSame(SimpleAcl::WHITELIST, $properties["behaviour"]);
         $this->assertSame([
-            "FooResource"   =>  ["name" => "FooResource", "permissions" => ["foo" => 1, "bar" => 2], "entries" => ["ROOT" => 3, "FooEntry" => 3], "behaviour" => 1, "parent" => null],
-            "BarResource"   =>  ["name" => "BarResource", "permissions" => ["moz" => 4, "poz" => 8], "entries" => ["ROOT" => 15, "FooEntry" => 15], "behaviour" => 1, "parent" => "FooResource"],
-            "MozResource"   =>  ["name" => "MozResource", "permissions" => null, "entries" => ["ROOT" => 15], "behaviour" => 1, "parent" => "BarResource"]
-        ], $this->extractAclProperty($acl, "acl"));
+            "MozResource"   =>  ["name" => "MozResource", "permissions" => ["foo" => 1, "bar" => 2], "entries" => ["ROOT" => 3], "parent" => null, "behaviour" => 0],
+            "FooResource"   =>  ["name" => "FooResource", "permissions" => ["foo" => 1, "bar" => 2, "moz" => 4, "poz" => 8], "entries" => ["ROOT" => 15, "processed_entries" => ["FooProcessor" => ["FooEntry" => 1, "BarEntry" => 1|2]]], "parent" => null, "behaviour" => 1],
+            "BarResource"   =>  ["name" => "BarResource", "permissions" => ["loz" => 16, "kek" => 32], "entries" => ["ROOT" => 63, "global_entries" => ["FooEntry" => 16|32], "processed_entries" => ["FooProcessor" => ["FooEntry" => 1|32, "BarEntry" => 1|2|16]]], "parent" => "FooResource", "behaviour" => 1]
+        ], $properties["acl"]);
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::registerProcessor()
+     */
+    public function testRegisterProcessor(): void
+    {
+        $processor = function(UserInterface $user): void {
+            
+        };
+        
+        $acl = new SimpleAcl();
+        $this->assertNull($acl->registerProcessor("FooProcessor", $processor));
+        
+        $processors = $this->extractProperties($acl, ["processors"])["processors"];
+        
+        $this->assertSame(["FooProcessor" => $processor], $processors);
     }
     
     /**
@@ -309,60 +340,55 @@ class SimpleAclTest extends AclTestCase
     }
     
     /**
-     * @see \Ness\Component\Acl\SimpleAcl::addProcessor()
-     */
-    public function testAddProcessor(): void
-    {
-        $acl = new SimpleAcl();
-        
-        $processor = function(): void {};
-        
-        $this->assertNull($acl->registerProcessor("foo", $processor));
-        
-        $this->assertSame(["foo" => $processor], $this->extractAclProperty($acl, "processors"));
-    }
-    
-    /**
      * @see \Ness\Component\Acl\SimpleAcl::addResource()
-     * @see \Ness\Component\Acl\SimpleAcl::end()
+     * @see \Ness\Component\Acl\SimpleAcl::endResource()
      */
-    public function testAddResourceAndEnd(): void
+    public function testAddResource(): void
     {
         $acl = new SimpleAcl();
         
-        $this->assertSame($acl, $acl->addResource("Foo"));
-        $this->assertSame($acl, $acl->addResource("Bar", "Foo"));
+        $this->assertSame($acl, $acl->addResource("FooResource"));
+        $current = $this->extractProperties($acl, ["currentResource"])["currentResource"];
+        $this->assertSame("FooResource", $current);
+        $acl->endResource();
+        $current = $this->extractProperties($acl, ["currentResource"])["currentResource"];
+        $this->assertNull($current);
+        $acl->changeBehaviour(SimpleAcl::BLACKLIST);
+        $this->assertSame($acl, $acl->addResource("BarResource", "FooResource"));
+        $current = $this->extractProperties($acl, ["currentResource"])["currentResource"];
+        $this->assertSame("BarResource", $current);
+        $acl->endResource();
+        $acl->addResource("MozResource")->endResource();
+        
+        $acl = $this->extractProperties($acl, ["acl"])["acl"];
         
         $this->assertSame([
-            "Foo"   =>  ["name" => "Foo", "permissions" => null, "entries" => ["ROOT" => 0], "behaviour" => 1, "parent" => null],
-            "Bar"   =>  ["name" => "Bar", "permissions" => null, "entries" => ["ROOT" => 0], "behaviour" => 1, "parent" => "Foo"]
-        ], $this->extractAclProperty($acl, "acl"));
-        $this->assertSame("Bar", $this->extractAclProperty($acl, "currentResource"));
-        $this->assertNull($acl->end());
-        $this->assertNull($this->extractAclProperty($acl, "currentResource"));
+            "FooResource" => ["name" => "FooResource", "permissions" => null, "entries" => ["ROOT" => 0], "parent" => null, "behaviour" => 1],
+            "BarResource" => ["name" => "BarResource", "permissions" => null, "entries" => ["ROOT" => 0], "parent" => "FooResource", "behaviour" => 1],
+            "MozResource" => ["name" => "MozResource", "permissions" => null, "entries" => ["ROOT" => 0], "parent" => null, "behaviour" => 0]
+        ], $acl);
     }
     
     /**
-     * @see \Ness\Component\Acl\SimpleAcl::addPermissions()
+     * @see \Ness\Component\Acl\SimpleAcl::addPermission()
      */
     public function testAddPermission(): void
     {
-        $acl = new SimpleAcl(SimpleAcl::BLACKLIST);
+        $acl = new SimpleAcl();
         
-        $this->assertSame($acl, $acl->addResource("Bar"));
-        $this->assertSame($acl, $acl
-                                ->addResource("Foo")
-                                ->addPermission("foo")
-                                ->addPermission("bar", "Bar")
-                                ->addPermission("bar")
-                                ->addPermission("moz"));
-        $this->assertSame($acl, $acl->addResource("Moz", "Foo")->addPermission("poz"));
+        $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->endResource();
+        $acl->addResource("BarResource", "FooResource")->addPermission("moz")->addPermission("poz")->endResource();
+        $acl->addResource("MozResource", "BarResource")->addPermission("loz")->addPermission("kek")->endResource();
         
+        $acl = $this->extractProperties($acl, ["acl"])["acl"];
         $this->assertSame([
-            "Bar"   =>  ["name" => "Bar", "permissions" => ["bar" => 1], "entries" => ["ROOT" => 1], "behaviour" => 0, "parent" => null],
-            "Foo"   =>  ["name" => "Foo", "permissions" => ["foo" => 1, "bar" => 2, "moz" => 4], "entries" => ["ROOT" => 7], "behaviour" => 0, "parent" => null],
-            "Moz"   =>  ["name" => "Moz", "permissions" => ["poz" => 8], "entries" => ["ROOT" => 15], "behaviour" => 0, "parent" => "Foo"]
-        ], $this->extractAclProperty($acl, "acl"));
+            "FooResource" => 
+                ["name" => "FooResource", "permissions" => ["foo" => 1, "bar" => 2], "entries" => ["ROOT" => 3], "parent" => null, "behaviour" => 1],
+            "BarResource" => 
+                ["name" => "BarResource", "permissions" => ["moz" => 4, "poz" => 8], "entries" => ["ROOT" => 15], "parent" => "FooResource", "behaviour" => 1],
+            "MozResource" => 
+                ["name" => "MozResource", "permissions" => ["loz" => 16, "kek" => 32], "entries" => ["ROOT" => 63], "parent" => "BarResource", "behaviour" => 1]
+        ], $acl);
     }
     
     /**
@@ -372,54 +398,81 @@ class SimpleAclTest extends AclTestCase
     {
         $acl = new SimpleAcl();
         
-        $acl->addResource("Foo")
+        $acl
+        ->addResource("FooResource")
             ->addPermission("foo")
             ->addPermission("bar")
-            ->addEntry("FooEntry", ["foo", "bar"])
-            ->addEntry("BarEntry", ["foo"])
-        ->end();
-        $acl->addResource("Bar", "Foo")
             ->addPermission("moz")
-            ->addPermission("poz")
-            ->addEntry("BarEntry", ["moz", "poz", "foo", "bar"])
-        ->end();
-        $acl->addResource("Moz", "Bar")
+            ->addPermission("poz");
+        $this->assertSame($acl, $acl->wrapProcessor("FooProcessor"));
+        $this->assertSame($acl, $acl->addEntry("FooEntry", ["foo", "poz"]));
+        $this->assertSame($acl, $acl->addEntry("BarEntry", ["FooEntry", "bar"]));
+        $this->assertSame($acl, $acl->endProcessor());
+        $acl->wrapProcessor("BarProcessor")
+            ->addEntry("FooEntry", ["foo"])
+            ->addEntry("BarEntry", ["ROOT"])
+        ->endProcessor();
+        $acl->addEntry("FooEntry", ["bar", "moz"]);
+        $acl->endResource();
+        
+        $acl
+        ->addResource("BarResource", "FooResource")
             ->addPermission("loz")
             ->addPermission("kek")
-            ->addEntry("MozEntry", ["BarEntry", "loz", "kek"])
-        ->end();
+            ->addEntry("PozEntry", ["loz", "foo", "kek"])
+            ->wrapProcessor("FooProcessor")
+                ->addEntry("FooEntry", ["FooEntry", "loz"])
+                ->addEntry("MozEntry", ["BarEntry", "kek"])
+                ->addEntry("PozEntry", ["PozEntry", "bar"])
+            ->endProcessor()
+            ->wrapProcessor("BarProcessor")
+                ->addEntry("FooEntry", ["FooEntry", "moz", "kek"])
+                ->addEntry("BarEntry", ["BarEntry", "kek"])
+            ->endProcessor()
+            ->addEntry("FooEntry", ["FooEntry", "kek"])
+        ->endResource();
+        $acl->wrapProcessor("FooProcessor")->addEntry("LozEntry", ["foo", "bar", "kek"], "BarResource")->endProcessor();
+        $acl->addEntry("LozEntry", ["foo", "bar"], "FooResource");
         
+        $acl = $this->extractProperties($acl, ["acl"])["acl"];
         $this->assertSame([
-            "Foo"   =>  ["name" => "Foo", "permissions" => ["foo" => 1, "bar" => 2], "entries" => ["ROOT" => 3, "FooEntry" => 3, "BarEntry" => 1], "behaviour" => 1, "parent" => null],
-            "Bar"   =>  ["name" => "Bar", "permissions" => ["moz" => 4, "poz" => 8], "entries" => ["ROOT" => 15, "BarEntry" => 15], "behaviour" => 1, "parent" => "Foo"],
-            "Moz"   =>  ["name" => "Moz", "permissions" => ["loz" => 16, "kek" => 32], "entries" => ["ROOT" => 63, "MozEntry" => 63], "behaviour" => 1, "parent" => "Bar"],
-        ], $this->extractAclProperty($acl, "acl"));
-    }
-    
-    /**
-     * @see \Ness\Component\Acl\SimpleAcl::buildMaskRepresentation()
-     */
-    public function testBuildMaskRepresentation(): void
-    {
-        $acl = new SimpleAcl();
-        $acl->addResource("Foo")->addPermission("foo")->addPermission("bar")->end();
-        $acl->addResource("Bar", "Foo")->addPermission("moz")->addPermission("poz")->addEntry("FooEntry", ["foo", "bar", "moz"])->end();
-        
-        $expected = [
-            "<span style=\"color:green\">foo</span>|<span style=\"color:red\">bar</span>|<span style=\"color:green\">moz</span>|<span style=\"color:red\">poz</span>|",
-            "<span style=\"color:green\">foo</span>|<span style=\"color:red\">bar</span>|",
-            "foo+bar+moz-poz+",
-            "foo+bar+moz+poz-",
-        ];
-        
-        $this->assertSame($expected[0], SimpleAcl::buildMaskRepresentation($acl, "Bar", 0b0101));
-        $this->assertSame($expected[1], SimpleAcl::buildMaskRepresentation($acl, "Foo", 0b1101));
-        $this->assertSame($expected[2], SimpleAcl::buildMaskRepresentation($acl, "Bar", 0b1011, function(string& $representation, string $permission, bool $granted): void {
-            $representation .= $permission .= ($granted) ? "+" : "-"; 
-        }));
-        $this->assertSame($expected[3], SimpleAcl::buildMaskRepresentation($acl, "Bar", "FooEntry", function(string& $representation, string $permission, bool $granted): void {
-            $representation .= $permission .= ($granted) ? "+" : "-";
-        }));
+            "FooResource" =>
+                [
+                    "name" => "FooResource", 
+                    "permissions" => ["foo" => 1, "bar" => 2, "moz" => 4, "poz" => 8], 
+                    "entries" => [
+                        "ROOT" => 1|2|4|8,
+                        "processed_entries" =>  [
+                            "FooProcessor"      =>  ["FooEntry" => 1|8, "BarEntry" => 1|8|2],
+                            "BarProcessor"      =>  ["FooEntry" => 1, "BarEntry" => 1|2|4|8]
+                        ],
+                        "global_entries"    =>  [
+                            "FooEntry"          =>  2|4,
+                            "LozEntry"          =>  1|2
+                        ]
+                    ], 
+                    "parent" => null,
+                    "behaviour" => 1
+                ],
+            "BarResource" =>
+                [
+                    "name" => "BarResource", 
+                    "permissions" => ["loz" => 16, "kek" => 32], 
+                    "entries" => [
+                        "ROOT" => 1|2|4|8|16|32,
+                        "global_entries"    =>  [
+                            "PozEntry"          =>  16|1|32,
+                            "FooEntry"          =>  2|4|32
+                        ],
+                        "processed_entries" =>  [
+                            "FooProcessor"      =>  ["FooEntry" => 1|8|16, "MozEntry" => 1|8|2|32, "PozEntry" => 16|1|32|2, "LozEntry" => 1|2|32],
+                            "BarProcessor"      =>  ["FooEntry" => 1|4|32, "BarEntry" => 1|2|4|8|32]
+                        ]
+                    ], 
+                    "parent" => "FooResource",
+                    "behaviour" => 1
+                ]
+        ], $acl);
     }
     
                     /**_____EXCEPTIONS_____**/
@@ -427,10 +480,10 @@ class SimpleAclTest extends AclTestCase
     /**
      * @see \Ness\Component\Acl\SimpleAcl::__construct()
      */
-    public function testExceptionWhenBehaviourIsInvalid(): void
+    public function testException__constructWhenBehaviourIsInvalid(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage("Acl behaviour MUST be one of the value determined into the acl");
+        $this->expectExceptionMessage("Behaviour is invalid. Use SimpleAcl::WHITELIST or SimpleAcl::BLACKLIST const");
         
         $acl = new SimpleAcl(3);
     }
@@ -438,31 +491,138 @@ class SimpleAclTest extends AclTestCase
     /**
      * @see \Ness\Component\Acl\SimpleAcl::isAllowed()
      */
-    public function testExceptionIsAllowedWhenGivenResourceIsNeitherAStringOrABindable(): void
+    public function testExceptionIsAllowedWhenGivenResourceIsNotAValidType(): void
     {
         $this->expectException(\TypeError::class);
-        $this->expectExceptionMessage("Resource MUST be a string or an implementation of AclBindableInterface. 'array' given");
+        $this->expectExceptionMessage("Resource MUST be a string or an instance of AclBindableInterface. 'array' given");
         
         $acl = new SimpleAcl();
-        $acl->isAllowed($this->getMockBuilder(UserInterface::class)->getMock(), [], "Foo");
+        $acl->isAllowed($this->getMockBuilder(UserInterface::class)->getMock(), [], "foo");
     }
     
     /**
      * @see \Ness\Component\Acl\SimpleAcl::isAllowed()
      */
-    public function testExceptionIsAllowedWhenResourceIsNotRegistered(): void
+    public function testExceptionIsAllowedWhenGivenResourceIsNotRegisteredIntoTheAcl(): void
     {
         $this->expectException(ResourceNotFoundException::class);
-        $this->expectExceptionMessage("This resource 'Foo' is not registered into the acl");
+        $this->expectExceptionMessage("This resource 'FooResource' is not registered into the acl");
         
         $acl = new SimpleAcl();
-        $acl->isAllowed($this->getMockBuilder(UserInterface::class)->getMock(), "Foo", "Foo");
+        $acl->isAllowed($this->getMockBuilder(UserInterface::class)->getMock(), "FooResource", "foo");
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::isAllowed()
+     */
+    public function testExceptionIsAllowedWhenPermissionNotFound(): void
+    {
+        $this->expectException(PermissionNotFoundException::class);
+        $this->expectExceptionMessage("This permission 'foo' is not registered into resource 'FooResource'");
+        
+        $acl = new SimpleAcl();
+        $acl->addResource("FooResource")->endResource();
+        $acl->isAllowed($this->getMockBuilder(UserInterface::class)->getMock(), "FooResource", "foo");
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::isAllowed()
+     */
+    public function testExceptionIsAllowedWhenAProcessorIsSettedToStrictAndTryingToGrantAnInvalidPermissionOrEntry(): void
+    {
+        $this->expectException(EntryNotFoundException::class);
+        $this->expectExceptionMessage("This entry/permission 'foo' cannot be processed into processor 'FooProcessor'. See message : This entry 'foo' is not registered into resource 'FooResource'");
+        
+        $processor = function(UserInterface $user): void {
+            $this->setToStrict();
+            $this->grant("foo");
+        };
+        
+        $user = $this->getMockBuilder(UserInterface::class)->getMock();
+        $user->expects($this->once())->method("getAttribute")->with(SimpleAcl::ACL_USER_ATTRIBUTE)->will($this->returnValue(null));
+        
+        $acl = new SimpleAcl();
+        $acl->registerProcessor("FooProcessor", $processor);
+        $acl->addResource("FooResource")->addPermission("bar")->endResource();
+        
+        $acl->isAllowed($user, "FooResource", "bar");
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::isAllowed()
+     */
+    public function testExceptionIsAllowedWhenAProcessorIsSettedToStrictAndTryingToDenyAnInvalidPermissionOrEntry(): void
+    {
+        $this->expectException(EntryNotFoundException::class);
+        $this->expectExceptionMessage("This entry/permission 'foo' cannot be processed into processor 'FooProcessor'. See message : This entry 'foo' is not registered into resource 'FooResource'");
+        
+        $processor = function(UserInterface $user): void {
+            $this->setToStrict();
+            $this->deny("foo");
+        };
+        
+        $user = $this->getMockBuilder(UserInterface::class)->getMock();
+        $user->expects($this->once())->method("getAttribute")->with(SimpleAcl::ACL_USER_ATTRIBUTE)->will($this->returnValue(null));
+        
+        $acl = new SimpleAcl();
+        $acl->registerProcessor("FooProcessor", $processor);
+        $acl->addResource("FooResource")->addPermission("bar")->endResource();
+        
+        $acl->isAllowed($user, "FooResource", "bar");
     }
     
     /**
      * @see \Ness\Component\Acl\SimpleAcl::buildFromFiles()
      */
-    public function testExceptionBuildFromFilesWhenAnInvalidFileIsGiven(): void
+    public function testExceptionBuildFromFilesWhenResourceNotFoundException(): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage("An error happen into this file '/home/algorab/Shared/Framework/Acl/tests/Fixtures/SimpleAcl/Invalid/ResourceNotFoundException.php' during the initialization of the acl. See : This parent resource 'FooResource' is not registered into the acl and cannot be extended to 'BarResource'");
+        
+        $acl = new SimpleAcl();
+        $acl->buildFromFiles([__DIR__."/Fixtures/SimpleAcl/Invalid/ResourceNotFoundException.php"]);
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::buildFromFiles()
+     */
+    public function testExceptionBuildFromFilesWhenLogicException(): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage("An error happen into this file '/home/algorab/Shared/Framework/Acl/tests/Fixtures/SimpleAcl/Invalid/LogicException.php' during the initialization of the acl. See : This permission 'foo' is already registered into resource 'FooResource'");
+        
+        $acl = new SimpleAcl();
+        $acl->buildFromFiles([__DIR__."/Fixtures/SimpleAcl/Invalid/LogicException.php"]);
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::buildFromFiles()
+     */
+    public function testExceptionBuildFromFilesWhenEntryNotFoundException(): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage("An error happen into this file '/home/algorab/Shared/Framework/Acl/tests/Fixtures/SimpleAcl/Invalid/EntryNotFoundException.php' during the initialization of the acl. See : This entry 'foo' is not registered into resource 'FooResource'");
+        
+        $acl = new SimpleAcl();
+        $acl->buildFromFiles([__DIR__."/Fixtures/SimpleAcl/Invalid/EntryNotFoundException.php"]);
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::buildFromFiles()
+     */
+    public function testExceptionBuildFromFilesWhenAFileIsRegisteringAProcessor(): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage("An error happen into this file '/home/algorab/Shared/Framework/Acl/tests/Fixtures/SimpleAcl/Invalid/ProcessorError.php' during the initialization of the acl. See : Cannot register acl processor into file");
+        
+        $acl = new SimpleAcl();
+        $acl->buildFromFiles([__DIR__."/Fixtures/SimpleAcl/Invalid/ProcessorError.php"]);
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::buildFromFiles()
+     */
+    public function testExceptionWhenAFileIsInvalid(): void
     {
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage("This file 'Foo' is neither a valid file or directory");
@@ -474,27 +634,26 @@ class SimpleAclTest extends AclTestCase
     /**
      * @see \Ness\Component\Acl\SimpleAcl::changeBehaviour()
      */
-    public function testExceptionChangeBehaviourWhenBehaviourIsInvalid(): void
+    public function testExceptionWhenBehaviourWhenBehaviourIsInvalid(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage("Acl behaviour MUST be one of the value determined into the acl");
+        $this->expectExceptionMessage("Behaviour is invalid. Use SimpleAcl::WHITELIST or SimpleAcl::BLACKLIST const");
         
         $acl = new SimpleAcl();
-        
         $acl->changeBehaviour(3);
     }
     
     /**
      * @see \Ness\Component\Acl\SimpleAcl::addResource()
      */
-    public function testExceptionAddResourceWhenTheResourceIsAlreadyRegistered(): void
+    public function testExceptionAddResourceWhenResourceIsAlreadyRegistered(): void
     {
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage("This resource 'Foo' is already registered into the acl");
+        $this->expectExceptionMessage("This resource 'FooResource' is already registered into the acl");
         
         $acl = new SimpleAcl();
-        
-        $acl->addResource("Foo")->addResource("Foo");
+        $acl->addResource("FooResource")->endResource();
+        $acl->addResource("FooResource");
     }
     
     /**
@@ -503,164 +662,148 @@ class SimpleAclTest extends AclTestCase
     public function testExceptionAddResourceWhenParentResourceIsNotRegistered(): void
     {
         $this->expectException(ResourceNotFoundException::class);
-        $this->expectExceptionMessage("This resource 'Bar' given as parent is not registered into the acl");
+        $this->expectExceptionMessage("This parent resource 'FooResource' is not registered into the acl and cannot be extended to 'BarResource'");
         
         $acl = new SimpleAcl();
+        $acl->addResource("BarResource", "FooResource");
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::addResource()
+     */
+    public function testExceptionAddResourceWhenLastResourceCursorIsNotCleared(): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage("Cannot add a new resource now. End registration of 'FooResource' before new registration");
         
-        $acl->addResource("Foo", "Bar");
+        $acl = new SimpleAcl();
+        $acl->addResource("FooResource")->addResource("BarResource");
     }
     
     /**
      * @see \Ness\Component\Acl\SimpleAcl::addPermission()
      */
-    public function testExceptionAddPermissionWhenPermissionIsAlreadyRegistered(): void
+    public function testExceptionAddPermissionWhenNoResourceSelected(): void
     {
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage("This permission 'foo' is already setted into resource 'Foo'");
+        $this->expectExceptionMessage("No resource has been defined");
         
         $acl = new SimpleAcl();
-        
-        $acl->addResource("Bar")->addPermission("foo")->end();
-        $acl->addResource("Foo")->addPermission("foo")->addPermission("foo");
-    }
-    
-    /**
-     * @see \Ness\Component\Acl\SimpleAcl::addPermission()
-     */
-    public function testExceptionAddPermissionWhenPermissionIsAlreadyRegisteredIntoAParentResource(): void
-    {
-        $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage("This permission 'foo' is already registered into parent resource 'Foo' and cannot be redeclared into resource 'Bar'");
-        
-        $acl = new SimpleAcl();
-        
-        $acl->addResource("Foo")->addPermission("foo")->end();
-        $acl->addResource("Bar", "Foo")->addPermission("foo")->end();
-    }
-    
-    /**
-     * @see \Ness\Component\Acl\SimpleAcl::addPermission()
-     */
-    public function testExceptionAddPermissionWhenNotResourceIsSetted(): void
-    {
-        $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage("No resource has been declared to register permission or entries");
-        
-        $acl = new SimpleAcl();
-        
         $acl->addPermission("foo");
     }
     
     /**
      * @see \Ness\Component\Acl\SimpleAcl::addPermission()
      */
-    public function testExceptionAddPermissionWhenResourceIsNotRegistered(): void
+    public function testExceptionAddPermissionWhenPermissionHasBeenAlreadyDeclaredIntoResource(): void
     {
-        $this->expectException(ResourceNotFoundException::class);
-        $this->expectExceptionMessage("This resource 'Foo' is not registered into the acl");
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage("This permission 'foo' is already registered into resource 'FooResource'");
         
         $acl = new SimpleAcl();
-        
-        $acl->addPermission("foo", "Foo");
+        $acl->addResource("FooResource")->addPermission("foo")->addPermission("foo");
     }
     
     /**
      * @see \Ness\Component\Acl\SimpleAcl::addPermission()
      */
-    public function testExceptionAddPermissionWhenLimitIsReached(): void
+    public function testExceptionAddPermissionWhenPermissionHasBeenAlreadyDeclaredIntoAParentResource(): void
     {
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage("Max permissions allowed reached for resource 'Foo'");
+        $this->expectExceptionMessage("This permission 'foo' has been already declared into parent resource 'FooResource' of resource 'MozResource' and cannot be redeclared");
         
         $acl = new SimpleAcl();
-        $acl->addResource("Foo");
-        for ($i = 0; $i < 32; $i++) {
-            $acl->addPermission("foo{$i}");
-        }
-    }
-    
-    public function testExceptionAddEntryWhenEntryNameIsRoot(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage("ROOT entry name is reserved and cannot be reassigned into resource 'Foo'");
-        
-        $acl = new SimpleAcl();
-        
-        $acl->addResource("Foo")->addEntry("ROOT", []);
+        $acl->addResource("FooResource")->addPermission("foo")->endResource();
+        $acl->addResource("BarResource", "FooResource")->addPermission("bar")->endResource();
+        $acl->addResource("MozResource", "BarResource")->addPermission("foo")->endResource();
     }
     
     /**
-     * @see \Ness\Component\Acl\SimpleAcl::buildMaskRepresentation()
+     * @see \Ness\Component\Acl\SimpleAcl::addPermission()
      */
-    public function testExceptionBuildMaskRepresentationWhenMaskIsNeitherAStringOrAnInt(): void
+    public function testExceptionAddPermissionWhenMaxPermissionCountAllowedIsReached(): void
     {
-        $this->expectException(\TypeError::class);
-        $this->expectExceptionMessage("Mask MUST be an int or a string");
-
-        $acl = new SimpleAcl();
-        
-        SimpleAcl::buildMaskRepresentation($acl, "Foo", []);
-    }
-    
-    /**
-     * @see \Ness\Component\Acl\SimpleAcl::buildMaskRepresentation()
-     */
-    public function testExceptionBuildMaskRepresentationWhenResourceIsNotFound(): void
-    {
-        $this->expectException(ResourceNotFoundException::class);
-        $this->expectExceptionMessage("This resource 'Foo' is not registered into the acl");
-        
-        $acl = new SimpleAcl();
-        
-        SimpleAcl::buildMaskRepresentation($acl, "Foo", 0b0000);
-    }
-    
-    /**
-     * @see \Ness\Component\Acl\SimpleAcl::buildMaskRepresentation()
-     */
-    public function testExceptionBuildMaskRepresentationWhenMaskGivenIsNotARegisteredEntryAllParent(): void
-    {
-        $this->expectException(PermissionNotFoundException::class);
-        $this->expectExceptionMessage("This entry 'FooEntry' is not registred into resource 'MozResource' neither into one of its parent 'FooResource, BarResource'");
-        
-        $acl = new SimpleAcl();
-        $acl->addResource("FooResource")->addResource("BarResource", "FooResource")->addResource("MozResource", "BarResource");
-        
-        SimpleAcl::buildMaskRepresentation($acl, "MozResource", "FooEntry");
-    }
-    
-    /**
-     * @see \Ness\Component\Acl\SimpleAcl::buildMaskRepresentation()
-     */
-    public function testExceptionBuildMaskRepresentationWhenMaskGivenIsNotARegisteredEntry(): void
-    {
-        $this->expectException(PermissionNotFoundException::class);
-        $this->expectExceptionMessage("This entry 'FooEntry' is not registered into resource 'FooResource'");
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage("Cannot add more permission into resource 'FooResource'");
         
         $acl = new SimpleAcl();
         $acl->addResource("FooResource");
-        
-        SimpleAcl::buildMaskRepresentation($acl, "FooResource", "FooEntry");
+        for ($i = 0; $i < 32; $i++) {
+            $acl->addPermission((string) $i);
+        }
     }
     
     /**
-     * Extract a property from a SimpleAcl instace for comparaison
+     * @see \Ness\Component\Acl\SimpleAcl::addEntry()
+     */
+    public function testExceptionAddEntryWhenResourceIsNotRegistered(): void
+    {
+        $this->expectException(ResourceNotFoundException::class);
+        $this->expectExceptionMessage("This resource 'FooResource' is not registered into the acl");
+        
+        $acl = new SimpleAcl();
+        $acl->addEntry("FooEntry", [], "FooResource");
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::addEntry()
+     */
+    public function testExceptionAddEntryWhenEntryIsRoot(): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage("ROOT entry cannot be overriden into resource 'FooResource'");
+        
+        $acl = new SimpleAcl();
+        $acl->addResource("FooResource")->addEntry("ROOT", []);
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::addEntry()
+     */
+    public function testExceptionAddEntryWhenPermissionNotFoundIntoResourceWithNoParent(): void
+    {
+        $this->expectException(EntryNotFoundException::class);
+        $this->expectExceptionMessage("This entry 'foo' is not registered into resource 'FooResource'");
+        
+        $acl = new SimpleAcl();
+        $acl->addResource("FooResource")->addEntry("FooEntry", ["foo"]);
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::addEntry()
+     */
+    public function testExceptionAddEntryWhenPermissionNotFoundIntoResourceWithParent(): void
+    {
+        $this->expectException(EntryNotFoundException::class);
+        $this->expectExceptionMessage("This entry 'foo' is not registered into resource 'BarResource' nor into one of its parents 'FooResource'");
+        
+        $acl = new SimpleAcl();
+        $acl->addResource("FooResource")->endResource();
+        $acl->addResource("BarResource", "FooResource")->addEntry("FooEntry", ["foo"]);
+    }
+    
+    /**
+     * Extract multiple properties from an acl 
      * 
      * @param SimpleAcl $acl
-     *   Acl instance
-     * @param string $property
-     *   Property to extract
+     *   Acl initialized
+     * @param array $properties
+     *   Properties to extract
      * 
-     * @return mixed
-     *   Current property value
+     * @return array
+     *   All values indexed by the property name
      */
-    private function extractAclProperty(SimpleAcl $acl, string $property)
+    private function extractProperties(SimpleAcl $acl, array $properties): array
     {
+        $values = [];
         $reflection = new \ReflectionClass($acl);
-        $property = $reflection->getProperty($property);
-        $property->setAccessible(true);
+        foreach ($properties as $property) {
+            $current = $reflection->getProperty($property);
+            $current->setAccessible(true);
+            $values[$property] = $current->getValue($acl);
+        }
         
-        return $property->getValue($acl);
+        return $values;
     }
     
 }

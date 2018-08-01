@@ -10,4 +10,6 @@ declare(strict_types = 1);
  *
  */
 
-$this->addResource("MozResource", "BarResource")->end();
+// Fixture only
+
+$this->addResource("BarResource", "FooResource")->endResource();

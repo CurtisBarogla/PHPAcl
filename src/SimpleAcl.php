@@ -16,11 +16,12 @@ use Ness\Component\User\UserInterface;
 use Ness\Component\Acl\Exception\ResourceNotFoundException;
 use Ness\Component\Acl\Exception\InvalidArgumentException;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
+use Ness\Component\Acl\Exception\EntryNotFoundException;
 use Psr\SimpleCache\CacheInterface;
 
 /**
- * Simple acl.
- * For those who DEFINITELY does not like the other acl :)
+ * A simple acl for those who does not like my other implementation
+ * All is fluent and in memory
  * 
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
@@ -29,39 +30,53 @@ class SimpleAcl implements AclInterface
 {
     
     /**
-     * Reference to the last resource registered into the acl
+     * Reference to the last resource added
      * 
      * @var string|null
      */
     private $currentResource = null;
     
     /**
-     * Current wrap permission/entry
+     * Reference for registering further entries into a processor
      * 
-     * @var array|null
+     * @var string|null
      */
-    private $currentPipeline = null;
+    private $currentProcessor = null;
     
     /**
-     * If next permissions/entries found must be registered into pipeline
+     * Multi mode
      * 
      * @var bool
      */
-    private $pipeline = false;
+    private $multi = false;
     
     /**
-     * Resources already checked
+     * Currently saved permissions
+     * 
+     * @var int[]
+     */
+    private $currentMulti;
+    
+    /**
+     * Resources already validated
      * 
      * @var bool[]
      */
-    private $resourceChecked = null;
-    
+    private $resourceValidated;
+
     /**
-     * Reference to all resources registered into the acl
+     * Acl map
      * 
-     * @var array
+     * @var array[]
      */
     protected $acl;
+    
+    /**
+     * Acl behaviour
+     * 
+     * @var int
+     */
+    protected $behaviour;
     
     /**
      * Acl processors
@@ -71,39 +86,39 @@ class SimpleAcl implements AclInterface
     protected $processors = [];
     
     /**
-     * Acl behaviour for further registrated resources
-     * 
-     * @var int
-     */
-    protected $behaviour;
-    
-    /**
      * Resource name index
-     *
+     * 
      * @var string
      */
     private const NAME_INDEX = "name";
     
     /**
-     * Permissions index
-     * 
+     * Resource permissions index
+     *
      * @var string
      */
     private const PERMISSIONS_INDEX = "permissions";
     
     /**
-     * Entries index
+     * Resource entries index
      *
      * @var string
      */
     private const ENTRIES_INDEX = "entries";
     
     /**
-     * Behaviour index
-     *
+     * Entries linked to a processor
+     * 
      * @var string
      */
-    private const BEHAVIOUR_INDEX = "behaviour";
+    private const PROCESSED = "processed_entries";
+    
+    /**
+     * Entries global
+     * 
+     * @var string
+     */
+    private const GLOBAL_ENTRIES = "global_entries";
     
     /**
      * Resource parent index
@@ -113,48 +128,57 @@ class SimpleAcl implements AclInterface
     private const PARENT_INDEX = "parent";
     
     /**
-     * All permissions are granted be default and be denied
+     * Resource behaviour index
+     *
+     * @var string
+     */
+    private const BEHAVIOUR_INDEX = "behaviour";
+    
+    /**
+     * Max permissions allowed by resource
+     * 
+     * @var int
+     */
+    private const MAX = 31;
+    
+    /**
+     * Blacklist acl
+     * All permissions are granted by default
      * 
      * @var int
      */
     public const BLACKLIST = 0;
     
     /**
-     * All permissions are denied be default and be allowed
+     * Whitelist acl
+     * All permissions are denied by default
      *
      * @var int
      */
     public const WHITELIST = 1;
     
     /**
-     * Used to store the acl into the cache
+     * Attribute name
      * 
      * @var string
      */
-    public const CACHE_KEY = "_cached_simple_acl_";
+    public const ACL_USER_ATTRIBUTE = "ACL_PERMISSIONS";
     
     /**
-     * Attribute name for storing permissions from a processed user
+     * Acl cache key
      * 
      * @var string
      */
-    public const USER_ATTRIBUTE = "SIMPLE_ACL_PERMISSIONS";
+    public const CACHE_IDENTIFIER = "builded_cached_acl";
     
     /**
-     * Max permissions allowed
-     * 
-     * @var int
-     */
-    public const MAX = 31;
-    
-    /**
-     * Initialize the acl
+     * Initialize acl
      * 
      * @param int $behaviour
-     *   Default behaviour of the acl. By default, setted to whitelist
+     *   Acl behaviour. By default WHITELIST
      * 
      * @throws InvalidArgumentException
-     *   When given behaviour is no a valid one
+     *   When given behaviour is invalid
      */
     public function __construct(int $behaviour = self::WHITELIST)
     {
@@ -167,102 +191,108 @@ class SimpleAcl implements AclInterface
      */
     public function isAllowed(UserInterface $user, $resource, string $permission, ?\Closure $update = null): bool
     {
-        if($resource instanceof AclBindableInterface) {
-            $update = function(UserInterface $user, bool $result) use ($permission, $resource) {
-                return $resource->updateAclPermission($user, $permission, $result);
-            };
-            $resource = $resource->getAclResourceName();
-        }
+        $bindable = null;
+        $this->validateResource($resource, $bindable);
         
-        $this->validateResource($resource);
-                
-        if(null === $attribute = $user->getAttribute(self::USER_ATTRIBUTE)) {
-            $user->addAttribute(self::USER_ATTRIBUTE, []);
-            $attribute = $user->getAttribute(self::USER_ATTRIBUTE);
-        }
+        if($this->multi)
+            $required = $this->handleMulti($resource, $permission);
+        else
+            $required = $this->lookForPermission($resource, $permission);
         
-        $required = $this->getIndex($this->acl[$resource], $permission, self::PERMISSIONS_INDEX);
-        if(isset($attribute["<{$resource}>"]) || (null === $update && isset($attribute[$resource])))
-            return (bool) ( ( ($attribute[$resource] ?? $attribute["<{$resource}>"]) & $required) === $required );
-        
+        $attribute = null;
         $locked = false;
-        if(!isset($attribute[$resource])) {
-            $mask = ($this->acl[$resource][self::BEHAVIOUR_INDEX] === self::BLACKLIST) ? $this->acl[$resource][self::ENTRIES_INDEX]["ROOT"] : 0;
-            foreach ($this->processors as $name => $processor) {
-                $processor->call($this->getProcessorAclWrapper($mask, $locked, $resource), $user);  
-                if($locked)
-                    break;
+        $initialized = true;
+        $mask = null;
+        $this->initializeUser($user, $resource, $attribute, $initialized, $locked, $mask);
+        
+        if($locked || !$initialized && null === $update && null === $bindable)
+            return (bool) ( ($mask & $required) === $required );
+
+        if($initialized) {
+            foreach ($this->processors as $identifier => $processor) {
+                $processor->call($this->instantiateAclProcessorWrapper($mask, $locked, $resource, $identifier), $user);
+                
+                if($locked) {
+                    unset($attribute[$resource[self::NAME_INDEX]]);
+                    $attribute["<{$resource[self::NAME_INDEX]}>"] = $mask;
+                    $user->addAttribute(self::ACL_USER_ATTRIBUTE, $attribute);
+                    
+                    return (bool) ( ($mask & $required) === $required );
+                }
             }
             
-            $attribute[($locked) ? "<{$resource}>" : $resource] = $mask;
-            $user->addAttribute(self::USER_ATTRIBUTE, $attribute);
-        } else
-            $mask = $attribute[$resource];
-
-        $result = (bool) ( ($mask & $required) === $required);
+            $attribute[$resource[self::NAME_INDEX]] = $mask;
+            $user->addAttribute(self::ACL_USER_ATTRIBUTE, $attribute);
+        }
         
-        if(null === $update || $locked)
+        if($update === null && null === $bindable)
+            return (bool) ( ($mask & $required) === $required );
+        
+        $result = (bool) ( ($mask & $required) === $required );
+        
+        $update = (null !== $update) 
+                        ? ((null !== $bindable) 
+                            ? $update($user, $bindable) 
+                            : $update($user)) 
+                        : $bindable->updateAclPermission($user, $permission, $result);
+            
+        if(null === $update)
             return $result;
         
-        $update = ($this->acl[$resource][self::BEHAVIOUR_INDEX] === self::BLACKLIST) 
-                            ? !\Closure::bind($update, null)($user, $result) 
-                            : \Closure::bind($update, null)($user, $result);
-        
-        return (null !== $update) ? ($update || $result && $update) : $result;
+        return ($resource[self::BEHAVIOUR_INDEX] === self::WHITELIST) ? $update : !$update;
     }
     
     /**
-     * Active acl pipeline.
-     * Therefore, all entries or permissions found will be stored into a hash table
-     * Usefull for many call to allowed with the same permissions setted into isAllowed
+     * Set the acl into multi mode.
+     * Useful for optimizing the acl during multiple call to the same permission (in a loop for example)
      */
-    public function pipeline(): void
+    public function multi(): void
     {
-        $this->pipeline = true;
+        $this->multi = true;
     }
     
     /**
-     * Clear the last pipeline call
+     * Clear the last multi setup and set it to off
      */
-    public function endPipeline(): void
+    public function clearMulti(): void
     {
-        $this->currentPipeline = null;
-        $this->pipeline = false;
+        $this->currentMulti = null;
+        $this->multi = false;
     }
     
     /**
-     * Cache the acl via a PSR-16 Cache implementation
+     * Cache a builded acl via a PSR-16 Cache implementation.
+     * Processors are not cached
      * 
      * @param CacheInterface $cache
      *   PSR-16 Cache implementation
      * 
      * @return bool
-     *   True if the acl has been cached with success. False otherwise
+     *   True if cached with success. False otherwise
      */
     public function cache(CacheInterface $cache): bool
     {
-        return $cache->set(self::CACHE_KEY, \json_encode([
-            "map"       =>  $this->acl,
+        return $cache->set(self::CACHE_IDENTIFIER, \json_encode([
+            "acl"       =>  $this->acl,
             "behaviour" =>  $this->behaviour
         ]));
     }
     
     /**
-     * Build the acl from a cached version if exists
+     * Try to get a cached version of the acl from a PSR-16 Cache implementation
      * 
      * @param CacheInterface $cache
      *   PSR-16 Cache implementation
      * 
      * @return bool
-     *   True if the acl has been initialized from the cache. False otherwise
+     *   True if the acl has been initialized from a cached one. False otherwise
      */
     public function buildFromCache(CacheInterface $cache): bool
     {
-        if(null !== $acl = $cache->get(self::CACHE_KEY, null)) {
+        if(null !== $acl = $cache->get(self::CACHE_IDENTIFIER)) {
             $acl = \json_decode($acl, true);
-            
-            $this->acl = $acl["map"];
             $this->behaviour = $acl["behaviour"];
+            $this->acl = $acl["acl"];
             
             return true;
         }
@@ -271,649 +301,745 @@ class SimpleAcl implements AclInterface
     }
     
     /**
-     * Invalidate a cached acl
-     * 
-     * @param CacheInterface $cache
-     *   PSR-16 Cache implementation
-     */
-    public function invalidateCache(CacheInterface $cache): void
-    {
-        $cache->delete(self::CACHE_KEY);
-    }
-    
-    /**
-     * Build the acl from a set of files.
-     * File can be a directory
+     * Initialize the acl from a set of files or directories
+     * Processor cannot be registered into this files
      * 
      * @param array $files
-     *   File initializing the acl
+     *   Files or directories initializing the acl
      *   
+     * @throws \LogicException 
+     *   When a file is invalid
      * @throws \LogicException
-     *   When a given file is neither a directory or a file
+     *   When an error happen into a file
      */
     public function buildFromFiles(array $files): void
     {
-        // deny some methods into file to not alter the acl integrity 
-        $include = \Closure::bind(function(string $file): void {
-            include $file;
-            // make sure that the curent resource cursor is cleared after the inclusion
-            $this->end();
-        }, new class($this) {
-            
-            /**
-             * Acl
-             *
-             * @var SimpleAcl
-             */
-            private $acl;
-            
-            /**
-             * Initialize wrapper
-             * 
-             * @param SimpleAcl $acl
-             *   Current acl reference
-             */
-            public function __construct(SimpleAcl $acl)
-            {
-                $this->acl = $acl;
+        $include = function(string $file): void {
+            try {
+                // make sure no processor are registered into included files
+                $currentProcessorCount = \count($this->processors);
+                $currentBehaviour = $this->behaviour;
+                include $file;
+                if($currentProcessorCount !== \count($this->processors))
+                    throw new \LogicException("Cannot register acl processor into file");
+                // clear cursor if not ended
+                $this->endProcessor();
+                $this->endResource();
+                $this->changeBehaviour($currentBehaviour);
+            } catch (\LogicException|EntryNotFoundException|ResourceNotFoundException $e) {
+                throw new \LogicException("An error happen into this file '{$file}' during the initialization of the acl. See : {$e->getMessage()}");
             }
-            
-            /**
-             * @see \Ness\Component\Acl\SimpleAcl::addResource()
-             */
-            public function addResource(string $resource, ?string $parent = null): self
-            {
-                $this->acl->addResource($resource, $parent);
-                
-                return $this;
-            }
-            
-            /**
-             * @see \Ness\Component\Acl\SimpleAcl::addPermission()
-             */
-            public function addPermission(string $permission, ?string $resource = null): self
-            {
-                $this->acl->addPermission($permission, $resource);
-                
-                return $this;
-            }
-            
-            /**
-             * @see \Ness\Component\Acl\SimpleAcl::wrapProcessor()
-             */
-            public function wrapProcessor(string $processor): self
-            {
-                $this->acl->wrapProcessor($processor);
-                
-                return $this;
-            }
-            
-            /**
-             * @see \Ness\Component\Acl\SimpleAcl::addEntry()
-             */
-            public function addEntry(string $entry, array $permissions, ?string $resource = null): self
-            {
-                $this->acl->addEntry($entry, $permissions, $resource);
-                
-                return $this;
-            }
-            
-            /**
-             * @see \Ness\Component\Acl\SimpleAcl::endWrapProcessor()
-             */
-            public function endWrapProcessor(): self
-            {
-                $this->acl->endWrapProcessor();
-                
-                return $this;
-            }
-            
-            /**
-             * @see \Ness\Component\Acl\SimpleAcl::end()
-             */
-            public function end(): void
-            {
-                $this->acl->end();
-            }
-            
-        });
+        };
         
         foreach ($files as $file) {
             if(!\file_exists($file))
                 throw new \LogicException("This file '{$file}' is neither a valid file or directory");
             if(\is_dir($file)) {
-                foreach (new \DirectoryIterator($file) as $file)
+                foreach (new \DirectoryIterator($file) as $file) {
                     if(!$file->isDot())
-                        $include($file->getPathname());
-            } else 
+                        $include($file->getPathname());    
+                }
+            } else {
                 $include($file);
+            }
         }
     }
     
     /**
-     * Change behaviour of all further registered resources
+     * Register a processor to handle a user over the acl
+     * 
+     * @param string $identifier
+     *   An unique identifier
+     * @param \Closure $processor
+     *   Action to call. Takes as parameter the user
+     */
+    public function registerProcessor(string $identifier, \Closure $processor): void
+    {
+        $this->processors[$identifier] = $processor;
+    }
+    
+    /**
+     * Change the behaviour of the acl.
+     * All further registered resources will be assigned to this one
      * 
      * @param int $behaviour
-     *   Behaviour to set
-     *  
+     *   Acl behaviour
+     * 
      * @throws InvalidArgumentException
-     *   When given behaviour is no a valid one
+     *   When given behaviour is invalid
      */
     public function changeBehaviour(int $behaviour): void
     {
         $this->assignBehaviour($behaviour);
     }
-    
+
     /**
-     * Register a processor. 
-     * A processor a executed on each linked entries before the acl made its decision over a user
-     * 
-     * @param string $processor
-     *   Processor name
-     * @param \Closure $action
-     *   Action to execute
-     *   Takes as parameter the user. $this is reassign to use grant and deny methods
-     *   @see \Ness\Component\Acl\SimpleAcl::getProcessorAclWrapper()
-     */
-    public function registerProcessor(string $processor, \Closure $action): void
-    {
-        $this->processors[$processor] = $action;
-    }    
-    
-    /**
-     * Add a resource into the acl.
-     * All further permissions or entries registered will be linked to this resource until end() method is called
+     * Add a resource into the acl
      * 
      * @param string $resource
      *   Resource name
      * @param string|null $parent
-     *   Parent resource. All permissions and entries will be applied to this one
-     * 
+     *   Parent resource
+     *   
      * @return self
      *   Fluent
      *   
-     * @throws \LogicException
-     *   If a resource with the same name is already registered
      * @throws ResourceNotFoundException
-     *   If given parent resource is not registered
+     *   If parent resource is not registered
+     * @throws \LogicException
+     *   If resource is already registered
+     * @throws \LogicException
+     *   When a resource is already in registration
      */
     public function addResource(string $resource, ?string $parent = null): self
     {
+        if(null !== $this->currentResource)
+            throw new \LogicException("Cannot add a new resource now. End registration of '{$this->currentResource}' before new registration");
+        
         if(isset($this->acl[$resource]))
             throw new \LogicException("This resource '{$resource}' is already registered into the acl");
         
-        if(null !== $parent)
-            if(!isset($this->acl[$parent]))
-                throw new ResourceNotFoundException("This resource '{$parent}' given as parent is not registered into the acl");
+        if(null !== $parent && !isset($this->acl[$parent]))
+            throw new ResourceNotFoundException("This parent resource '{$parent}' is not registered into the acl and cannot be extended to '{$resource}'");
         
-        $this->acl[$resource] = [];
         $this->acl[$resource][self::NAME_INDEX] = $resource;
         $this->acl[$resource][self::PERMISSIONS_INDEX] = null;
         $this->acl[$resource][self::ENTRIES_INDEX] = null;
-        $this->acl[$resource][self::BEHAVIOUR_INDEX] = (null !== $parent) ? $this->acl[$parent][self::BEHAVIOUR_INDEX] : $this->behaviour;
-        $this->acl[$resource][self::PARENT_INDEX] = $parent;
         $this->acl[$resource][self::ENTRIES_INDEX]["ROOT"] = (null !== $parent) ? $this->acl[$parent][self::ENTRIES_INDEX]["ROOT"] : 0;
-        
+        $this->acl[$resource][self::PARENT_INDEX] = $parent;
+        $this->acl[$resource][self::BEHAVIOUR_INDEX] = (null !== $parent) ? $this->acl[$parent][self::BEHAVIOUR_INDEX] : $this->behaviour;
+    
         $this->currentResource = $resource;
         
         return $this;
     }
     
     /**
-     * Add a permission to the last added resource or given one.
-     * Given one will always have the priority
+     * Add a permission to the last added resource
      * 
      * @param string $permission
      *   Permission name
-     * @param string|null $resource
-     *   A specific resource or null to set the permission into the last added resource
-     * 
+     *   
      * @return self
      *   Fluent
-     *   
+     * 
      * @throws \LogicException
-     *   If a permission with the same name is already registered for the given resource
+     *   When the given permission has been already declared into the resource or a parent one
      * @throws \LogicException
-     *   If no resource has been setted
-     * @throws \LogicException
-     *   When max permissions allowed is reached
+     *   When max permissions count allowed is reached for this resource
      * @throws ResourceNotFoundException
      *   When given resource is not registered
      */
-    public function addPermission(string $permission, ?string $resource = null): self
+    public function addPermission(string $permission): self
     {
+        $resource = null;
         $pointed = &$this->point($resource);
 
-        if(isset($pointed[self::PERMISSIONS_INDEX][$permission]))
-            throw new \LogicException("This permission '{$permission}' is already setted into resource '{$resource}'");
-
         $count = 0;
-        $this->loopOnResource($resource, function(array $current, string $name) use (&$count, $permission, $resource): void {
-            if(null !== $current[self::PERMISSIONS_INDEX]) {
-                if(isset($current[self::PERMISSIONS_INDEX][$permission]))
-                    throw new \LogicException("This permission '{$permission}' is already registered into parent resource '{$name}' and cannot be redeclared into resource '{$resource}'");
-                $count += \count($current[self::PERMISSIONS_INDEX]);
+        $this->loopOnResource($pointed, function(array $current, string $name) use (&$count, $permission, $resource): bool {
+            if(isset($current[self::PERMISSIONS_INDEX][$permission])) {
+                if($name === $resource)
+                    throw new \LogicException("This permission '{$permission}' is already registered into resource '{$resource}'");
+                else 
+                    throw new \LogicException("This permission '{$permission}' has been already declared into parent resource '{$name}' of resource '{$resource}' and cannot be redeclared");
             }
+
+            if(null !== $current[self::PERMISSIONS_INDEX])
+                $count += \count($current[self::PERMISSIONS_INDEX]);
+            
+            return true;
         });
-        
+
         if($count >= self::MAX)
-            throw new \LogicException("Max permissions allowed reached for resource '{$resource}'");
+            throw new \LogicException("Cannot add more permission into resource '{$resource}'");
         
-        $this->acl[$resource][self::ENTRIES_INDEX]["ROOT"] |= $pointed[self::PERMISSIONS_INDEX][$permission] = ($count === 0) ? 1 : 1 << $count;
+        $pointed[self::ENTRIES_INDEX]["ROOT"] |= $pointed[self::PERMISSIONS_INDEX][$permission] = ($count === 0) ? 1 : 1 << $count;
         
         return $this;
     }
     
     /**
-     * Add an entry into the acl
+     * Wrap all further registered entries into a processor
+     * 
+     * @param string $processor
+     *   Processor identifier
+     * 
+     * @return self
+     *   Fluent
+     */
+    public function wrapProcessor(string $processor): self
+    {
+        $this->currentProcessor = $processor;
+        
+        return $this;
+    }
+    
+    /**
+     * Add an entry into a resource.
+     * If wrapProcessor has been called, this entry will be assigned to a processor
      * 
      * @param string $entry
      *   Entry name
      * @param array $permissions
-     *   Permissions assigned to this entry. A permission can be either a permission or a parent entry
+     *   Permission accorded to this entry. Can be either a permission or a previously declared entry
      * @param string|null $resource
-     *   A specific resource or null to set the permission into the last added resource
+     *   Resource to attached to entry or null
      * 
      * @return self
      *   Fluent
      *   
-     * @throws PermissionNotFoundException
-     *   If a permission cannot be assigned
-     * @throws \LogicException
-     *   If no resource has been setted
-     * @throws ResourceNotFoundException
-     *   When given resource is not registered
-     * @throws InvalidArgumentException
-     *   When entry name is reserved
+     * @throws EntryNotFoundException
+     *   If a permission is not a valid permission nor a valid entry
      */
     public function addEntry(string $entry, array $permissions, ?string $resource = null): self
     {        
         $pointed = &$this->point($resource);
         
         if($entry === "ROOT")
-            throw new InvalidArgumentException("ROOT entry name is reserved and cannot be reassigned into resource '{$resource}'");
+            throw new \LogicException("ROOT entry cannot be overriden into resource '{$resource}'");
         
         $value = 0;
+        
         foreach ($permissions as $permission) {
             try {
-                $value |= $this->getIndex($pointed, $permission, self::PERMISSIONS_INDEX);                
+                $value |= $this->lookForPermission($pointed, $permission); 
             } catch (PermissionNotFoundException $e) {
-                $value |= $this->getIndex($pointed, $permission, self::ENTRIES_INDEX);
+                $value |= $this->lookForEntry($pointed, $permission, $this->currentProcessor);
             }
         }
         
-        $pointed[self::ENTRIES_INDEX][$entry] = $value;
+        if(null !== $this->currentProcessor)
+            $pointed[self::ENTRIES_INDEX][self::PROCESSED][$this->currentProcessor][$entry] = $value;
+        else
+            $pointed[self::ENTRIES_INDEX][self::GLOBAL_ENTRIES][$entry] = $value;
         
         return $this;
     }
     
     /**
-     * Finalize registration of the last added resource
+     * Finalize registration of the last wrap
+     * 
+     * @return self
+     *   Fluent
      */
-    public function end(): void
+    public function endProcessor(): self
+    {
+        $this->currentProcessor = null;
+        
+        return $this;
+    }
+    
+    /**
+     * End registration of the last resource
+     */
+    public function endResource(): void
     {
         $this->currentResource = null;
     }
     
     /**
-     * Build a "readable" permission representation of a permission mask over an acl resource
+     * Validate a resource
      * 
-     * @param SimpleAcl $acl
-     *   Acl builded
-     * @param string $resource
-     *   Resource to get the permission reprensentation
-     * @param int|string $mask
-     *   Mask to represent. Can be either an int or an entry setted into the resource
-     * @param \Closure|null $decorator
-     *   Decorator. Leave to null... to get a nice echoable red and green representation
+     * @param string|AclBindableInterface& $resource
+     *   Resource to validate
+     * @param AclBindableInterface|null& $bindable
+     *   Will be assigned if give resource is an AclBindableInterface instance
      * 
-     * @return string
-     *   Readable permission representation of the given mask over the resource
-     *   
-     * @throws ResourceNotFoundException
-     *   If the resource is not setted
      * @throws \TypeError
-     *   When mask is neither a string or an int
-     * @throws PermissionNotFoundException
-     *   When mask is a not founded resource entry
+     *   If given resource is neither a string or an AclBindableInterface component
+     * @throws ResourceNotFoundException
+     *   If given resource is not registered
      */
-    public static function buildMaskRepresentation(SimpleAcl $acl, string $resource, $mask, ?\Closure $decorator = null): string
+    private function validateResource(&$resource, ?AclBindableInterface& $bindable): void
     {
-        if(!\is_string($mask) && !\is_int($mask))
-            throw new \TypeError("Mask MUST be an int or a string");
-        
-        if(!isset($acl->acl[$resource]))
-            throw new ResourceNotFoundException("This resource '{$resource}' is not registered into the acl");
-        
-        if(null === $decorator) {
-            $decorator  = function(string& $representation, string $permission, bool $granted): void {
-                $color = ($granted) ? "green" : "red";
-                $representation .= "<span style=\"color:{$color}\">{$permission}</span>|";
-            };
+        if($resource instanceof AclBindableInterface) {
+            $bindable = $resource;            
+            $resource = $resource->getAclResourceName();
         }
-            
-        $representation = '';
-        if(\is_string($mask))
-            $mask = $acl->getIndex($acl->acl[$resource], $mask, self::ENTRIES_INDEX);
         
-        $acl->loopOnResource($resource, function(array $current, string $name) use ($mask, &$representation, $decorator): void {
-            foreach ($current[self::PERMISSIONS_INDEX] as $permission => $value) {
-                \Closure::bind($decorator, null)($representation, $permission, (bool) ( ($mask & $value) === $value));
-            }
-        }, false);
-    
-        return $representation;
+        if(!isset($this->resourceValidated[$resource])) {
+            if(!\is_string($resource) && !$resource instanceof AclBindableInterface)
+                throw new \TypeError(\sprintf("Resource MUST be a string or an instance of AclBindableInterface. '%s' given",
+                    (\is_object($resource) ? \get_class($resource) : \gettype($resource))));
+                            
+            if(!isset($this->acl[$resource]))
+                throw new ResourceNotFoundException("This resource '{$resource}' is not registered into the acl");
+            
+            $this->resourceValidated[$resource] = true;
+        }
+        
+        $resource = $this->acl[$resource];
     }
     
     /**
-     * Point on the current resource or the given one
+     * Store permission mask value fetched for multiple call
      * 
-     * @param string&|null& $resource
-     *   Resource to point
-     *  
-     * @return &array
-     *   Resource pointed
+     * @param array $resource
+     *   Resource to handle
+     * @param string $permission
+     *   Permission to store
      * 
-     * @throws \LogicException
-     *   When no resource pointed
-     * @throws ResourceNotFoundException
-     *   When given resource is not registered
+     * @return int
+     *   Permission found or stored one via multi
      */
-    protected function &point(?string& $resource): array
+    private function handleMulti(array $resource, string $permission): int
+    {
+        return $this->currentMulti[$resource[self::NAME_INDEX]][$permission] 
+                    ?? $this->currentMulti[$resource[self::NAME_INDEX]][$permission] = $this->lookForPermission($resource, $permission);
+    }
+    
+    /**
+     * Instantiate a new acl processor wrapper
+     * 
+     * @param int& $mask
+     *   Current mask permission
+     * @param bool& $locked
+     *   Current locked flag
+     * @param array $resource
+     *   Resource to bind
+     * @param string $processor
+     *   Processor identifier
+     * 
+     * @return AclProcessorWrapper
+     *   Acl processor wrapper
+     */
+    private function instantiateAclProcessorWrapper(int&$mask, bool& $locked, array $resource, string $processor): AclProcessorWrapper
+    {
+        return new AclProcessorWrapper(
+            $processor,
+            $mask,
+            $locked,
+            $resource[self::BEHAVIOUR_INDEX],
+            \Closure::bind(function(string $permission) use ($resource, $processor): int {
+                try {
+                    return $this->lookForPermission($resource, $permission);
+                } catch (PermissionNotFoundException $e) {
+                    return $this->lookForEntry($resource, $permission, $processor);
+                }
+            }, $this),
+            \Closure::bind(function() use ($resource, $processor): array {
+                return $this->getProcessables($resource, $processor);
+            }, $this));
+    }
+    
+    /**
+     * Get a list of all entries linked to a processor
+     * 
+     * @param array $resource
+     *   Resource to get all entries
+     * @param string $processor
+     *   Processor name
+     * 
+     * @return array
+     *   Array of mask permission indexed by entry name
+     */
+    private function getProcessables(array $resource, string $processor): array
+    {
+        $processables = [];
+        
+        $this->loopOnResource($resource, function(array $current, string $name) use (&$processables, $processor): bool {
+            if(isset($current[self::ENTRIES_INDEX][self::PROCESSED][$processor])) {
+                foreach ($current[self::ENTRIES_INDEX][self::PROCESSED][$processor] as $entry => $permission) {
+                    if(!isset($processables[$entry]))
+                        $processables[$entry] = $permission;
+                }
+            }
+            return true;
+        });
+        
+        return $processables;
+    }
+    
+    /**
+     * Look for a permission into a resource and its parents
+     * 
+     * @param array $resource
+     *   Resource to look
+     * @param string $permission
+     *   Permission name
+     * 
+     * @return int
+     *   Permission value
+     *   
+     * @throws PermissionNotFoundException
+     *   When given permission is not registered
+     */
+    private function lookForPermission(array $resource, string $permission): int
+    {
+        $found = null;
+        $parents = null;
+        $this->loopOnResource($resource, function(array $current, string $name) use ($resource, $permission, &$found): bool {
+            if(isset($current[self::PERMISSIONS_INDEX][$permission])) {
+                $found = $current[self::PERMISSIONS_INDEX][$permission];
+                
+                return false;
+            }
+            
+            return true;
+        }, $parents);
+        
+        if(null === $found) {
+            if(isset($parents))
+                throw new PermissionNotFoundException(\sprintf("This permission '%s' is not registered into resource '%s' nor into one of its parents '%s'",
+                    $permission,
+                    $resource[self::NAME_INDEX],
+                    \implode(", ", $parents)));
+                
+            throw new PermissionNotFoundException("This permission '{$permission}' is not registered into resource '{$resource[self::NAME_INDEX]}'");          
+        }
+        
+        return $found;
+    }
+    
+    /**
+     * Look for an entry into a resource and its parents
+     * 
+     * @param string $resource
+     *   Resource to look
+     * @param string $entry
+     *   Entry to get
+     * @param string|null $processor
+     *   Processor name or null to search into global
+     * 
+     * @return int
+     *   Entry value
+     *   
+     * @throws EntryNotFoundException
+     *   When no entry corresponds the given one
+     */
+    private function lookForEntry(array $resource, string $entry, ?string $processor): int
+    {
+        if("ROOT" === $entry)
+            return $resource[self::ENTRIES_INDEX]["ROOT"];
+        
+        $found = null;
+        $parents = null;
+        
+        $lookUpon = function(?string $processor) use ($resource, $entry, &$found): \Closure {
+            return function(array $current, string $name) use ($resource, $entry, $processor, &$found): bool {                
+                $toLook = (null !== $processor) 
+                            ? $current[self::ENTRIES_INDEX][self::PROCESSED][$processor] ?? null
+                            : $current[self::ENTRIES_INDEX][self::GLOBAL_ENTRIES] ?? null;
+                if(isset($toLook[$entry])) {
+                    $found = $toLook[$entry];
+    
+                    return false;
+                }
+                
+                return true;
+            };
+        };
+        
+        // look in priority into resource and parents for an entry corresponding the processor
+        $this->loopOnResource($resource, $lookUpon($processor), $parents);
+        
+        // fallback to global if not found into processor
+        if($processor !== null && null === $found)
+            $this->loopOnResource($resource, $lookUpon(null), $parents);
+        
+        if(null === $found) {
+            if(isset($parents)) {
+                $exception = new EntryNotFoundException(\sprintf("This entry '%s' is not registered into resource '%s' nor into one of its parents '%s'",
+                    $entry,
+                    $resource[self::NAME_INDEX],
+                    \implode(", ", \array_unique($parents))));
+            } else {
+                $exception = new EntryNotFoundException("This entry '{$entry}' is not registered into resource '{$resource[self::NAME_INDEX]}'");                
+            }
+            
+            $exception->setEntry($entry);
+            throw $exception;
+        }
+        
+        return $found;
+    }
+    
+    /**
+     * Loop on resource and all its parents if setted
+     * 
+     * @param array $resource
+     *   Start resource
+     * @param \Closure $action
+     *   Action to perform on each resource. Takes as first parameter the array representation of the current resource as a second its name
+     *   MUST return true to continue the action or false to stop the loop
+     * @param array|null& $parents
+     *   Register all parents visited
+     * @param bool $reverse
+     *   Which order the action must be executed. By default from children to all parents 
+     */
+    private function loopOnResource(array $resource, \Closure $action, ?array& $parents = null, bool $reverse = true): void
+    {
+        while (true) {
+            if(!$reverse) {
+                $toLoop[] = $resource[self::NAME_INDEX];
+                if(null === $resource[self::PARENT_INDEX]) {
+                    \krsort($toLoop);
+                    foreach ($toLoop as $resource) {
+                        $resource = $this->acl[$resource];
+                        if(!$action->call($this, $resource, $resource[self::NAME_INDEX])) {
+                            unset($parents);
+                            return;
+                        }
+                    }                    
+                    return;
+                }
+            } else {
+                if(!$action->call($this, $resource, $resource[self::NAME_INDEX])) {
+                    unset($parents);
+                    return;                
+                }
+                if(null === $resource[self::PARENT_INDEX])                        
+                    return;
+            }
+            
+            $resource = $this->acl[$resource[self::PARENT_INDEX]];
+            $parents[] = $resource[self::NAME_INDEX];
+        }
+    }
+    
+    /**
+     * Point to a specific resource for modifications
+     * 
+     * @param string& $resource
+     *   Resource to modify
+     * 
+     * @return &array
+     *   Pointed resource
+     *   
+     * @throws \LogicException
+     *   When no resource are pointable
+     * @throws ResourceNotFoundException
+     *   When pointed resource is not registered
+     */
+    private function &point(?string& $resource): array
     {
         $resource = $resource ?? $this->currentResource;
         
         if(null === $resource)
-            throw new \LogicException("No resource has been declared to register permission or entries");
+            throw new \LogicException("No resource has been defined");
         
         if(!isset($this->acl[$resource]))
             throw new ResourceNotFoundException("This resource '{$resource}' is not registered into the acl");
-            
+        
         return $this->acl[$resource];
     }
     
     /**
-     * Try to get the value of a permission or an entry from a resource from a resource and its parents.
-     * If $permission is a resource entry and this entry has been overwritten, will return the last one
+     * Assign a new behaviour
      * 
-     * @param array $resource
-     *   Resource to check
-     * @param string $permission
-     *   Permission. Can be either a permission or an entry depending of the index given
-     * @param string $index
-     *   Index to check. Permissions or entries
-     * 
-     * @return int
-     *   Permission or entry value
-     * 
-     * @throws PermissionNotFoundException
-     *   When entry or permission cannot be found
-     */
-    protected function getIndex(array $resource, string $permission, string $index): int
-    {
-        if(isset($resource[$index][$permission]))
-            return $resource[$index][$permission];
-
-        if(isset($this->currentPipeline[$resource[self::NAME_INDEX]][$index][$permission]))
-            return $this->currentPipeline[$resource[self::NAME_INDEX]][$index][$permission];
-        
-        $value = null;
-        $visited = null;
-
-        $this->loopOnResource($resource[self::NAME_INDEX], function(array $parent, string $name) use ($permission, $index, &$value, &$visited): void {
-            $visited[] = $name;
-            if(null === $value && isset($parent[$index][$permission])) {
-                $value = $parent[$index][$permission];
-                unset($visited);
-            }                
-        });
-
-        
-        if(null === $value) {
-            $type = ($index === self::PERMISSIONS_INDEX) ? "permission" : "entry";
-            if(\count($visited) > 1) {
-                unset($visited[0]);
-                \krsort($visited);
-                $exception = new PermissionNotFoundException(\sprintf("This %s '%s' is not registred into resource '%s' neither into one of its parent '%s'",
-                    $type,
-                    $permission,
-                    $resource[self::NAME_INDEX],
-                    \implode(", ", $visited)));
-                $exception->setPermission($permission);
-                
-                throw $exception;
-            }
-            $exception = new PermissionNotFoundException("This {$type} '{$permission}' is not registered into resource '{$resource[self::NAME_INDEX]}'");
-            $exception->setPermission($permission);
-            
-            throw $exception;
-        }
-
-        if($this->pipeline)
-            $this->currentPipeline[$resource[self::NAME_INDEX]][$index][$permission] = $value;
-            
-        return $value;
-    }
-
-    /**
-     * Execute an action over a resource and all its parents if declared
-     * 
-     * @param string $resource
-     *   Base resource
-     * @param \Closure $action
-     *   Action to execute on the given resource and its declared parents
-     *   Takes as first parameter the current resource and as second its name
-     * @param bool $reverse
-     *   Resource order which the action is executed
-     */
-    protected function loopOnResource(string $resource, \Closure $action, bool $reverse = true): void
-    {
-        $last = $current = $this->acl[$resource];
-        
-        if($reverse || null === $current[self::PARENT_INDEX]) {
-            unset($last);            
-            $action->call($this, $current, $current[self::NAME_INDEX]);
-        }
-        
-        if(null !== $current[self::PARENT_INDEX]) {
-            while (null !== $current[self::PARENT_INDEX]) {
-                $current = $this->acl[$current[self::PARENT_INDEX]];
-                if($reverse)
-                    $action->call($this, $current, $current[self::NAME_INDEX]);
-                else 
-                    $parents[] = $current[self::NAME_INDEX];
-            }
-            
-            if($reverse)
-                return;
-            
-            \krsort($parents);
-            foreach ($parents as $parent) {
-                $action->call($this, $this->acl[$parent], $parent);
-            }
-            $action->call($this, $last, $last[self::NAME_INDEX]);
-        }
-    }
-    
-    /**
-     * Change behaviour of the acl
-     *
      * @param int $behaviour
-     *   Behaviour to set
-     *
+     *   Acl behaviour
+     * 
      * @throws InvalidArgumentException
-     *   When given behaviour is not a valid value
+     *   When given behaviour is not a valid one
      */
     private function assignBehaviour(int $behaviour): void
     {
         if($behaviour !== self::WHITELIST && $behaviour !== self::BLACKLIST)
-            throw new InvalidArgumentException("Acl behaviour MUST be one of the value determined into the acl");
-            
+            throw new InvalidArgumentException("Behaviour is invalid. Use SimpleAcl::WHITELIST or SimpleAcl::BLACKLIST const");
+        
         $this->behaviour = $behaviour;
     }
     
     /**
-     * Validate a resource name
+     * Initialize user permissions over a resource
      * 
-     * @param string|AclBindableInterface $resource
-     *   Resource name
-     *   
-     * @throws \TypeError
-     *   When neither a string or an AclBindableInterface component
-     * @throws ResourceNotFoundException
-     *   When not registered into the acl
+     * @param UserInterface $user
+     *   User to initialize
+     * @param array $resource
+     *   Resource to initialized
+     * @param array& $attribute
+     *   Initializes with value of the user's attribute
+     * @param bool& $initialized
+     *   Setted to true if the resource has been initialized into user attributes
+     * @param bool& $locked
+     *   Setted to true if the resource is locked
+     * @param int|null& $mask
+     *   Setted from the attribute or from resource initialization 
      */
-    private function validateResource($resource): void
+    private function initializeUser(
+        UserInterface $user, 
+        array $resource, 
+        ?array& $attribute, 
+        bool& $initialized, 
+        bool& $locked, 
+        ?int& $mask): void
     {
-        if(!isset($this->resourceChecked[$resource])) {
-            if(!\is_string($resource) && !$resource instanceof AclBindableInterface)
-                throw new \TypeError(\sprintf("Resource MUST be a string or an implementation of AclBindableInterface. '%s' given",
-                    \is_object($resource) ? \get_class($resource) : \gettype($resource)));
-                    
-            if(!isset($this->acl[$resource]))
-                throw new ResourceNotFoundException("This resource '{$resource}' is not registered into the acl");
-                        
-            $this->resourceChecked[$resource] = true;
+        if(null === $attribute = $user->getAttribute(self::ACL_USER_ATTRIBUTE)) {  
+            $user->addAttribute(self::ACL_USER_ATTRIBUTE, []);
+            $attribute = [];
         }
+        
+        if( ($locked = isset($attribute["<{$resource[self::NAME_INDEX]}>"])) || isset($attribute[$resource[self::NAME_INDEX]])) {
+            $mask = $attribute["<{$resource[self::NAME_INDEX]}>"] ?? $attribute[$resource[self::NAME_INDEX]];
+            $initialized = false;
+            
+            return;
+        }
+        
+        $initialized = true;
+        $mask = $attribute[$resource[self::NAME_INDEX]] = ($resource[self::BEHAVIOUR_INDEX] === self::WHITELIST) ? 0 : $resource[self::ENTRIES_INDEX]["ROOT"];
     }
     
+}
+
+/**
+ * Used by processors to interact with the user
+ * 
+ * @author CurtisBarogla <curtis_barogla@outlook.fr>
+ *
+ */
+class AclProcessorWrapper
+{
+    
     /**
-     * Provide an object wrapper to process a resource
+     * Processor identifier
      * 
+     * @var string
+     */
+    private $identifier;
+    
+    /**
+     * Current mask permission
+     * 
+     * @var int
+     */
+    private $mask;
+    
+    /**
+     * Lock state
+     * 
+     * @var bool
+     */
+    private $locked;
+    
+    /**
+     * Resource behaviour
+     * 
+     * @var int
+     */
+    private $behaviour;
+    
+    /**
+     * Used to find permission or entry
+     * 
+     * @var \Closure
+     */
+    private $finder;
+    
+    /**
+     * Used to get all entries from the resource affiliated to this processor
+     *
+     * @var \Closure
+     */
+    private $entriesCombiner;
+    
+    /**
+     * Strict mode
+     * 
+     * @var bool
+     */
+    private $strict = false;
+    
+    /**
+     * Initialize wrapper
+     * 
+     * @param string $identifier
+     *   Processor identifier
      * @param int& $mask
      *   Default permission mask
      * @param bool& $locked
      *   Lock state
-     * @param string $resource
-     *   Resource name
-     * @return object
-     *   Acl processor wrapper
+     * @param int $behaviour
+     *   Resource behaviour
+     * @param \Closure $finder
+     *   Permission/Entry finder
+     * @param \Closure $entriesCombiner
+     *   Entries processor combiner
      */
-    private function getProcessorAclWrapper(int& $mask, bool& $locked, string $resource)
+    public function __construct(string $identifier, int& $mask, bool& $locked, int $behaviour, \Closure $finder, \Closure $entriesCombiner)
     {
-        return new class(
-            $mask,
-            $this,
-            $this->acl[$resource][self::BEHAVIOUR_INDEX],
-            function(string $permission) use ($resource): int {
-                try {
-                    return $this->getIndex($this->acl[$resource], $permission, self::PERMISSIONS_INDEX);
-                } catch (PermissionNotFoundException $e) {
-                    return $this->getIndex($this->acl[$resource], $permission, self::ENTRIES_INDEX);
-                }
-            },
-            $locked)
-        {
-            
-            /**
-             * Default mask permission
-             *
-             * @var int
-             */
-            private $permission;
-            
-            /**
-             * Reference to acl
-             *
-             * @var SimpleAcl
-             */
-            private $acl;
-            
-            /**
-             * Reference to resource behaviour
-             *
-             * @var int
-             */
-            private $behaviour;
-            
-            /**
-             * Reference to determine a permission or an entry
-             *
-             * @var \Closure
-             */
-            private $finder;
-            
-            /**
-             * If permission has been locked
-             *
-             * @var bool
-             */
-            private $locked;
-            
-            /**
-             * Initialize the wrapper
-             *
-             * @param int $permission
-             *   Permission mask
-             * @param SimpleAcl $acl
-             *   Acl reference
-             * @param int $behaviour
-             *   Reference to resource behaviour
-             * @param \Closure $finder
-             *   Reference to determine a permission or an entry
-             * @param bool $locked
-             *   If permissions has been locked
-             */
-            public function __construct(int& $permission, SimpleAcl $acl, int $behaviour, \Closure $finder, bool& $locked)
-            {
-                $this->permission = &$permission;
-                $this->acl = $acl;
-                $this->behaviour = $behaviour;
-                $this->finder = $finder;
-                $this->locked = &$locked;
-            }
-            
-            /**
-             * Get behaviour of the current resource
-             * 
-             * @return int
-             *   Resource behaviour
-             */
-            public function getBehaviour(): int
-            {
-                return $this->behaviour;
-            }
-            
-            /**
-             * Grant permission or an entry
-             * 
-             * @param string $permission
-             *   Permission or entry name
-             */
-            public function grant(string $permission): void
-            {
-                try {
-                    if(!$this->locked)
-                        $this->permission |= $this->finder->call($this->acl, $permission);
-                } catch (PermissionNotFoundException $e) {
-                }
-            }
-            
-            /**
-             * Deny permission or an entry
-             *
-             * @param string $permission
-             *   Permission or entry name
-             */
-            public function deny(string $permission): void
-            {
-                try {
-                    if(!$this->locked)
-                        $this->permission &= ~($this->finder->call($this->acl, $permission));
-                } catch (PermissionNotFoundException $e) {
-                }
-            }
-            
-            /**
-             * Lock the mask for the resource. 
-             * Therefore it cannot be modified 
-             */
-            public function lock(): void
-            {
-                $this->locked = true;
-            }
-            
-        };
+        $this->identifier = $identifier;
+        $this->mask = &$mask;
+        $this->locked = &$locked;
+        $this->behaviour = $behaviour;
+        $this->finder = $finder;
+        $this->entriesCombiner = $entriesCombiner;
     }
-
+    
+    /**
+     * Get behaviour of the resource
+     * 
+     * @return int
+     *   Resource behaviour
+     */
+    public function getBehaviour(): int
+    {
+        return $this->behaviour;
+    }
+    
+    /**
+     * Grant a permission or an entry
+     *
+     * @param string $permission
+     *   Permission or entry to grant
+     */
+    public function grant(string $permission): void
+    {
+        if(!$this->locked) {
+            try {
+                $this->mask |= \call_user_func($this->finder, $permission);
+            } catch (EntryNotFoundException $e) {
+                if($this->strict)
+                    throw new EntryNotFoundException("This entry/permission '{$e->getEntry()}' cannot be processed into processor '{$this->identifier}'. See message : {$e->getMessage()}");
+            }   
+        }
+    }
+    
+    /**
+     * Deny a permission or an entry
+     * 
+     * @param string $permission
+     *   Permission or entry to deny
+     */
+    public function deny(string $permission): void
+    {
+        if(!$this->locked) {
+            try {
+                $this->mask &= ~(\call_user_func($this->finder, $permission));
+            } catch (EntryNotFoundException $e) {
+                if($this->strict)
+                    throw new EntryNotFoundException("This entry/permission '{$e->getEntry()}' cannot be processed into processor '{$this->identifier}'. See message : {$e->getMessage()}");
+            }
+        }
+    }
+    
+    /**
+     * Lock the permission
+     */
+    public function lock(): void
+    {
+        $this->locked = true;
+    }
+    
+    /**
+     * Get a list of all entries affiliated to this processor.
+     * 
+     * @return array|null
+     *   Array indexed by entry name and valued by the permission accorded to this entry or null if no entry found
+     */
+    public function getEntries(): ?array
+    {
+        return (empty($entries = \call_user_func($this->entriesCombiner))) ? null : $entries;
+    }
+    
+    /**
+     * Set the wrapper in strict mode.
+     * In this mode, if a permission or an entry has been not found, an exception will be thrown
+     */
+    public function setToStrict(): void
+    {
+        $this->strict = true;
+    }
+    
 }

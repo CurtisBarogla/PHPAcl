@@ -10,8 +10,14 @@ declare(strict_types = 1);
  *
  */
 
+// Fixture only
+
 $this
     ->addResource("FooResource")
     ->addPermission("foo")
     ->addPermission("bar")
-    ->addEntry("FooEntry", ["foo", "bar"]);
+    ->addPermission("moz")
+    ->addPermission("poz")
+    ->wrapProcessor("FooProcessor")
+        ->addEntry("FooEntry", ["foo"])
+        ->addEntry("BarEntry", ["FooEntry", "bar"]);
