@@ -36,9 +36,10 @@ interface AclInterface
      *   Permission to check
      * @param \Closure|null $update
      *   Update rights of the user over the given resource before the acl made its decision. 
-     *   MUST never be executed if the given resource is an acl bindable component.
      *   Permissions updated here MUST NOT be propagated to other isAllowed calls
      *   This Closure takes as parameter the user currently processed by the acl.
+     *   Takes as second parameter, if, and only if, the given resource is and AclBindableInterface component, the component
+     *   If resource is an AclBindableInterface component and $update is provided, $update HAS the last word no matter what
      *   MUST return a boolean
      * 
      * @return bool
