@@ -244,6 +244,9 @@ class SimpleAclTest extends TestCase
      */
     public function testCache(): void
     {
+        if(!\interface_exists("Psr\SimpleCache\CacheInterface"))
+            self::markTestSkipped("PSR-16 not found. Test skipped");
+        
         $cache = $this->getMockBuilder(CacheInterface::class)->getMock();
         
         $acl = new SimpleAcl();
@@ -264,6 +267,9 @@ class SimpleAclTest extends TestCase
      */
     public function testBuildFromCache(): void
     {
+        if(!\interface_exists("Psr\SimpleCache\CacheInterface"))
+            self::markTestSkipped("PSR-16 not found. Test skipped");
+        
         $cache = $this->getMockBuilder(CacheInterface::class)->getMock();
         
         $acl = new SimpleAcl();
