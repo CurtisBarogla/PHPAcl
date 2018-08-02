@@ -127,6 +127,23 @@ class Resource implements ResourceInterface, \Serializable
     
     /**
      * {@inheritDoc}
+     * @see \Ness\Component\Acl\Resource\ResourceInterface::grantRoot()
+     */
+    public function grantRoot(): ResourceInterface
+    {
+        $this->actions[] = function(int $current): int {
+            $root = 0;
+            foreach ($this->permissions as $value)
+                $root|= $value;
+            
+            return $root;
+        };
+        
+        return $this;
+    }
+    
+    /**
+     * {@inheritDoc}
      * @see \Ness\Component\Acl\Resource\ResourceInterface::deny()
      */
     public function deny($permissions): ResourceInterface

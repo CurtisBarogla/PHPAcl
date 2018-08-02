@@ -45,7 +45,15 @@ final class AclUser implements AclUserInterface
      * 
      * @var array|string|null
      */
-    private $permissions;
+    private $permissionsQueue;
+    
+    /**
+     * Root identifier permission.
+     * Fancy value to (i hope) not collide with a declared one into a resource
+     * 
+     * @var string
+     */
+    private const ROOT_PERMISSION = "@__ROOT__@";
     
     /**
      * Initialize acl user
@@ -152,6 +160,17 @@ final class AclUser implements AclUserInterface
     
     /**
      * {@inheritDoc}
+     * @see \Ness\Component\Acl\User\AclUserInterface::grantRoot()
+     */
+    public function grantRoot(): AclUserInterface
+    {
+        $this->queue(self::ROOT_PERMISSION, "grant");
+        
+        return $this;
+    }
+    
+    /**
+     * {@inheritDoc}
      * @see \Ness\Component\Acl\User\AclUserInterface::deny()
      */
     public function deny($permissions): AclUserInterface
@@ -167,18 +186,21 @@ final class AclUser implements AclUserInterface
      */
     public function on(ResourceInterface $resource): void
     {
-        if(null === $this->permissions)
+        if(null === $this->permissionsQueue)
             return;
         
         if($this->isLocked($resource)) {
-            $this->permissions = null;
+            $this->permissionsQueue = null;
             return;
         }
             
         try {
-            foreach ($this->permissions as $permissions) {
+            foreach ($this->permissionsQueue as $permissions) {
                 foreach ($permissions as $type => $permission) {
-                    ($type === "grant") ? $resource->grant($permission) : $resource->deny($permission);
+                    if($permission === self::ROOT_PERMISSION)
+                        $resource->grantRoot();
+                    else 
+                        ($type === "grant") ? $resource->grant($permission) : $resource->deny($permission);
                 }
             }
 
@@ -186,7 +208,7 @@ final class AclUser implements AclUserInterface
         } catch (PermissionNotFoundException $e) {
             throw new PermissionNotFoundException("This permission '{$e->getPermission()}' cannot be attributed to user '{$this->getName()}' as it is not defined into resource '{$resource->getName()}'");
         } finally {
-            $this->permissions = null;
+            $this->permissionsQueue = null;
         }
     }
     
@@ -240,7 +262,7 @@ final class AclUser implements AclUserInterface
             throw new \TypeError(\sprintf("Permissions MUST be an array or a string. '%s' given",
                 (\is_object($permissions) ? \get_class($permissions) : \gettype($permissions))));
             
-        $this->permissions[][$type] = $permissions;
+        $this->permissionsQueue[][$type] = $permissions;
     }
 
 }

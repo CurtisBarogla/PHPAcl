@@ -69,6 +69,19 @@ class ResourceTest extends AclTestCase
     }
     
     /**
+     * @see \Ness\Component\Acl\Resource\Resource::grantRoot()
+     */
+    public function testGrantRoot(): void
+    {
+        $resource = new Resource("Foo");
+        
+        $resource->addPermission("foo");
+        $resource->addPermission("bar");
+        
+        $this->assertSame($resource, $resource->grantRoot());
+    }
+    
+    /**
      * @see \Ness\Component\Acl\Resource\Resource::deny()
      */
     public function testDeny(): void
@@ -91,16 +104,18 @@ class ResourceTest extends AclTestCase
         
         $resource->addPermission("foo");
         $resource->addPermission("bar");
+        $resource->addPermission("moz");
         
         $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
-        $user->expects($this->exactly(2))->method("getPermission")->will($this->onConsecutiveCalls(0, 3));
-        $user->expects($this->exactly(2))->method("setPermission")->withConsecutive([3], [0]);
-        $user->expects($this->exactly(3))->method("isLocked")->withConsecutive([$resource])->will($this->onConsecutiveCalls(false, false, true));
+        $user->expects($this->exactly(3))->method("getPermission")->will($this->onConsecutiveCalls(0, 3, 0));
+        $user->expects($this->exactly(3))->method("setPermission")->withConsecutive([3], [0], [7]);
+        $user->expects($this->exactly(4))->method("isLocked")->withConsecutive([$resource])->will($this->onConsecutiveCalls(false, false, true, false));
         
         $resource->grant(["foo", "bar"])->deny("foo")->grant("foo")->to($user);
         $resource->deny(["foo", "bar"])->grant("foo")->deny("foo")->to($user);
         $this->assertNull($resource->to($user));
         $resource->deny(["foo", "bar"])->grant("foo")->to($user);
+        $resource->grantRoot()->to($user);
     }
     
     /**

@@ -71,6 +71,14 @@ interface ResourceInterface
     public function grant($permission): ResourceInterface;
     
     /**
+     * Special method granting all permissions
+     * 
+     * @return ResourceInterface
+     *   Fluent
+     */
+    public function grantRoot(): ResourceInterface;
+    
+    /**
      * Deny permission(s) to the user setted into the next call to to()
      *
      * @param array|string $permission

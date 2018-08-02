@@ -119,25 +119,28 @@ class AclUserTest extends AclTestCase
     {
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user
-            ->expects($this->exactly(3))
+            ->expects($this->exactly(4))
             ->method("getAttribute")
             ->withConsecutive([AclUserInterface::ACL_ATTRIBUTE_IDENTIFIER])
             ->will($this->onConsecutiveCalls(
                 ["Foo" => 0],
                 ["Foo" => 0],
-                ["<Foo>" => 0]));
+                ["<Foo>" => 0],
+                ["Foo" => 0]));
         $user = new AclUser($user);
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
-        $resource->expects($this->exactly(3))->method("getName")->will($this->returnValue("Foo"));
+        $resource->expects($this->exactly(4))->method("getName")->will($this->returnValue("Foo"));
         $resource->expects($this->exactly(2))->method("grant")->withConsecutive([ ["foo", "bar"] ], ["bar"]);
+        $resource->expects($this->once())->method("grantRoot");
         $resource->expects($this->exactly(2))->method("deny")->withConsecutive(["foo"], [ ["bar", "foo"] ]);
-        $resource->expects($this->exactly(2))->method("to")->with($user);
+        $resource->expects($this->exactly(3))->method("to")->with($user);
         
         $this->assertNull($user->grant(["foo", "bar"])->deny("foo")->on($resource));
         $this->assertNull($user->grant("bar")->deny(["bar", "foo"])->on($resource));
         $this->assertNull($user->grant("bar")->on($resource));
         $this->assertNull($user->on($resource));
+        $this->assertNull($user->grantRoot()->on($resource));
     }
     
     /**

@@ -63,6 +63,14 @@ interface AclUserInterface extends UserInterface
     public function grant($permissions): AclUserInterface;
     
     /**
+     * Grant root permission over the resource setted into the next call of to
+     *
+     * @return AclUserInterface
+     *   Fluent
+     */
+    public function grantRoot(): AclUserInterface;
+    
+    /**
      * Deny permission over the resource setted into the next call of to
      *
      * @param string|array $permissions
