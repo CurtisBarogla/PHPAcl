@@ -57,13 +57,6 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
     private $toExtends = [];
     
     /**
-     * Valid key far resource array
-     * 
-     * @var array
-     */
-    public const VALID_KEYS = ["behaviour", "extends", "permissions"];
-    
-    /**
      * Initialize resource loader.
      * 
      * @param array $files
@@ -124,13 +117,6 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
      */
     private function parse(string $file, string $name, array $resource): ResourceInterface
     {
-        if(!empty( ($invalid = \array_diff_key($resource, \array_flip(self::VALID_KEYS))) )) {
-            throw new ParseErrorException(\sprintf("Cannot initialize resource '%s' as invalid key '%s' is/are given into file '%s'",
-                $name,
-                \implode(", ", \array_keys($invalid)),
-                $file));
-        }
-
         $instance = new Resource($name, $resource["behaviour"] ?? ResourceInterface::WHITELIST);
         if(isset($resource["extends"]))
             $this->toExtends[$name] = $resource["extends"];
@@ -199,7 +185,7 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
         }
         
         // it a simple array representating the class. The file name is the resource name
-        if(empty($fileValue) || !empty(\array_intersect_key(\array_flip(self::VALID_KEYS), $fileValue))) {
+        if(empty($fileValue) || !empty(\array_intersect_key(\array_flip(["behaviour", "extends", "permissions"]), $fileValue))) {
             $resource = $this->parse($file, $name, $fileValue);
             $this->loadables[$resource->getName()] = $resource;
             

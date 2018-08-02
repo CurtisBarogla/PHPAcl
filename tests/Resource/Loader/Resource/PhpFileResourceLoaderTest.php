@@ -162,21 +162,6 @@ class PhpFileResourceLoaderTest extends AclTestCase
     /**
      * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::load()
      */
-    public function testExceptionLoadWhenAnArrayFileContainsAnInvalidKey(): void
-    {
-        $file = self::FIXTURES_DIRECTORY."/invalid/InvalidKey.php";
-
-        $this->expectException(ParseErrorException::class);
-        $this->expectExceptionMessage("Cannot initialize resource 'InvalidKey' as invalid key 'foo, bar' is/are given into file '{$file}'");
-        
-        $loader = new PhpFileResourceLoader([$file]);
-        
-        $loader->load("InvalidKey");
-    }
-    
-    /**
-     * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::load()
-     */
     public function testExceptionLoadWhenPermissionsKeyIsNotAnArray(): void
     {
         $file = self::FIXTURES_DIRECTORY."/invalid/InvalidPermission.php";
@@ -233,19 +218,5 @@ class PhpFileResourceLoaderTest extends AclTestCase
         
         $loader->load("Bar");
     }
-    
-    /*
-     * @see \Ness\Component\Acl\Resource\Loader\PhpFileResourceLoader::load()
-    public function testExceptionLoadWhenAMandatoryKeyIsNotGiven(): void
-    {
-        $file = self::FIXTURES_DIRECTORY."/invalid/ArrayWithoutMandatory.php";
-        $this->expectException(ParseErrorException::class);
-        $this->expectExceptionMessage("A mandatory key 'behaviour' for initializing the resource 'ArrayWithoutMandatory' is missing into file '{$file}'");
-        
-        $loader = new PhpFileResourceLoader([self::FIXTURES_DIRECTORY."/invalid"]);
-        
-        $loader->load("ArrayWithoutMandatory");
-    }
-    */
     
 }
