@@ -17,6 +17,7 @@ use Ness\Component\Acl\Exception\ResourceNotFoundException;
 use Ness\Component\Acl\Exception\ParseErrorException;
 use Ness\Component\Acl\Resource\Resource;
 use Ness\Component\Acl\Resource\ExtendableResource;
+use Ness\Component\Acl\Traits\FileLoaderTrait;
 
 /**
  * Initialize resource from a php file/or a directory of php files.
@@ -27,6 +28,8 @@ use Ness\Component\Acl\Resource\ExtendableResource;
  */
 class PhpFileResourceLoader implements ResourceLoaderInterface
 {
+    
+    use FileLoaderTrait;
     
     /**
      * An array of file paths 
@@ -62,10 +65,15 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
      * @param array $files
      *   Can be either a simple php file or a directory containing a set of php files.
      *   Each file MUST refer the resource name
+     *   
+     * @throws \LogicException
+     *   When a file is neither a valid directory or file
      */
     public function __construct(array $files)
     {
         $this->files = $files;
+        
+        $this->checkFiles();
     }
     
     /**
@@ -129,31 +137,6 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
         }
         
         return $instance;
-    }
-    
-    /**
-     * Build files into local file property to be used on next call of load
-     * 
-     * @throws \LogicException
-     *   When a file or a directory does nos exist
-     */
-    private function buildFiles(): void
-    {
-        foreach ($this->files as $index => $file) {
-            if(!\file_exists($file))
-                throw new \LogicException("This file '{$file}' is neither a directory or a file");
-            
-            if(\is_dir($file)) {
-                foreach (new \DirectoryIterator($file) as $file) {
-                    if($file->isDot()) continue;                    
-                    $this->files[$file->getBasename(".php")] = $file->getPathname();
-                }
-            } else {
-                $this->files[(new \SplFileInfo($file))->getBasename(".php")] = $file;
-            }
-            
-            unset($this->files[$index]);
-        }
     }
     
     /**

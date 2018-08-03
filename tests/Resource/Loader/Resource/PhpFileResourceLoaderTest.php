@@ -133,20 +133,7 @@ class PhpFileResourceLoaderTest extends AclTestCase
                     /**_____EXCEPTIONS_____**/
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::load()
-     */
-    public function testExceptionWhenAResourceCannotBeLoaded(): void
-    {
-        $this->expectException(ResourceNotFoundException::class);
-        $this->expectExceptionMessage("This resource 'NotFound' cannot be loaded via this loader");
-        
-        $loader = new PhpFileResourceLoader(self::VALID_FILES);
-        
-        $loader->load("NotFound");
-    }
-    
-    /**
-     * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::__construct()
      */
     public function testExceptionLoadWhenAFileDoesNotExist(): void
     {
@@ -155,6 +142,17 @@ class PhpFileResourceLoaderTest extends AclTestCase
         $this->expectExceptionMessage("This file '{$file}' is neither a directory or a file");
         
         $loader = new PhpFileResourceLoader([__DIR__."/foo"]);
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::load()
+     */
+    public function testExceptionWhenAResourceCannotBeLoaded(): void
+    {
+        $this->expectException(ResourceNotFoundException::class);
+        $this->expectExceptionMessage("This resource 'NotFound' cannot be loaded via this loader");
+        
+        $loader = new PhpFileResourceLoader(self::VALID_FILES);
         
         $loader->load("NotFound");
     }
