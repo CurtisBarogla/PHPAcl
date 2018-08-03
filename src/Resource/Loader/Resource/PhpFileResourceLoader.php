@@ -184,7 +184,7 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
             return;
         }
         
-        // it a simple array representating the class. The file name is the resource name
+        // it a simple array representing the class. The file name is the resource name
         if(empty($fileValue) || !empty(\array_intersect_key(\array_flip(["behaviour", "extends", "permissions"]), $fileValue))) {
             $resource = $this->parse($file, $name, $fileValue);
             $this->loadables[$resource->getName()] = $resource;
@@ -192,7 +192,7 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
             return;
         }
         
-        // mix of ResourceInterface and arrays
+        // multiple resources into same file
         foreach ($fileValue as $index => $resource) {
             // we assume at this point that the index is the resource name
             if(\is_string($index)) {
