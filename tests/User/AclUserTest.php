@@ -149,6 +149,17 @@ class AclUserTest extends AclTestCase
     public function testLock(): void
     {
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
+        $user->expects($this->once())->method("getAttribute")->with(AclUserInterface::ACL_ATTRIBUTE_IDENTIFIER)->will($this->returnValue(["<FooResource>" => 5]));
+        $user->expects($this->never())->method("addAttribute");
+        
+        $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
+        $resource->expects($this->once())->method("getName")->will($this->returnValue("FooResource"));
+        
+        $user = new AclUser($user);
+        
+        $this->assertNull($user->lock($resource)    );
+        
+        $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user
             ->expects($this->exactly(3))
             ->method("getAttribute")
@@ -195,7 +206,7 @@ class AclUserTest extends AclTestCase
                 null
             ));
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
-        $resource->expects($this->exactly(2))->method("getName")->will($this->returnValue("FooResource"));
+        $resource->expects($this->exactly(3))->method("getName")->will($this->returnValue("FooResource"));
         
         $user = new AclUser($user);
         
@@ -253,7 +264,7 @@ class AclUserTest extends AclTestCase
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->once())->method("grant")->with("foo")->will($this->throwException($exception));
-        $resource->expects($this->once())->method("getName")->will($this->returnValue("FooResource"));
+        $resource->expects($this->exactly(2))->method("getName")->will($this->returnValue("FooResource"));
         
         $user->grant("foo")->on($resource);
     }
