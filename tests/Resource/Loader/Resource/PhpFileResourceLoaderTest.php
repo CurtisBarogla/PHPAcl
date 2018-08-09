@@ -135,7 +135,7 @@ class PhpFileResourceLoaderTest extends AclTestCase
     /**
      * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::__construct()
      */
-    public function testExceptionLoadWhenAFileDoesNotExist(): void
+    public function testException__constructWhenAFileDoesNotExist(): void
     {
         $file = __DIR__."/foo";
         $this->expectException(\LogicException::class);
