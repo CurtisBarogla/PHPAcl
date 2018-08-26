@@ -15,6 +15,6 @@ declare(strict_types = 1);
 use Ness\Component\Acl\Resource\Resource;
 
 return [
-    $extends("MultipleFoo", (new Resource("MultipleBar"))->addPermission("barmultiple")),
-    $extends("FooSimple", (new Resource("MultipleFoo"))->addPermission("foomultiple")),
+    $this->extendsFromTo("MultipleFoo", (new Resource("MultipleBar"))->addPermission("barmultiple")),
+    $this->extendsFromTo("FooSimple", (new Resource("MultipleFoo"))->addPermission("foomultiple")),
 ];

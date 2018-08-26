@@ -21,5 +21,5 @@ return [
     ],
     
     (new Resource("CombinedBar"))->addPermission("barcombined"),
-    $extends("CombinedFoo", (new Resource("CombinedMoz"))->addPermission("mozcombined"))
+    $this->extendsFromTo("CombinedFoo", (new Resource("CombinedMoz"))->addPermission("mozcombined"))
 ];

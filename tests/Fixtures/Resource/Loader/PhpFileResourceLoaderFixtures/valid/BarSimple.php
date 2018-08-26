@@ -14,4 +14,4 @@ declare(strict_types = 1);
 
 use Ness\Component\Acl\Resource\Resource;
 
-return $extends("FooSimple", (new Resource("BarSimple"))->addPermission("bar")->addPermission("foo"));
+return $this->extendsFromTo("FooSimple", (new Resource("BarSimple"))->addPermission("bar")->addPermission("foo"));
