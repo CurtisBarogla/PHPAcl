@@ -48,14 +48,6 @@ final class AclUser implements AclUserInterface
     private $permissionsQueue;
     
     /**
-     * Root identifier permission.
-     * Fancy value to (i hope) not collide with a declared one into a resource
-     * 
-     * @var string
-     */
-    private const ROOT_PERMISSION = "@__ROOT__@";
-    
-    /**
      * Initialize acl user
      * 
      * @param UserInterface $user
@@ -164,7 +156,7 @@ final class AclUser implements AclUserInterface
      */
     public function grantRoot(): AclUserInterface
     {
-        $this->queue(self::ROOT_PERMISSION, "grant");
+        $this->queue("root", "root");
         
         return $this;
     }
@@ -197,7 +189,7 @@ final class AclUser implements AclUserInterface
         try {
             foreach ($this->permissionsQueue as $permissions) {
                 foreach ($permissions as $type => $permission) {
-                    if($permission === self::ROOT_PERMISSION)
+                    if("root" === $type)
                         $resource->grantRoot();
                     else 
                         ($type === "grant") ? $resource->grant($permission) : $resource->deny($permission);
