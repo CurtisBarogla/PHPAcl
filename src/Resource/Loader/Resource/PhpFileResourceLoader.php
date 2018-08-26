@@ -85,50 +85,8 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
         if(!$this->builded) {
             $this->buildFiles();
             
-            $inject = \Closure::bind(function(string $file, array& $extendsReference) {
-                return include $file;
-            }, new class($this->toExtends) {
-                
-                /**
-                 * Reference to extendables resources
-                 * 
-                 * @var string[]
-                 */
-                private $extendReference;
-                
-                /**
-                 * Initialize extender
-                 * 
-                 * @param array& $extendReference
-                 *   Reference to local extendables resources array
-                 */
-                public function __construct(array& $extendReference)
-                {
-                    $this->extendReference =& $extendReference;
-                }
-                
-                /**
-                 * Extends the parent resource to the resource
-                 * 
-                 * @param string $parent
-                 *   Parent resource name to extends
-                 * @param ResourceInterface $resource
-                 *   Resource name which the parent is inherited
-                 * 
-                 * @return ResourceInterface
-                 *   Resource added
-                 */
-                public function extendsFromTo(string $parent, ResourceInterface $resource): ResourceInterface
-                {
-                    $this->extendReference[$resource->getName()] = $parent;
-                    
-                    return $resource;
-                }
-                
-            });
-            
             foreach ($this->files as $name => $file)               
-                $this->buildLoadable($file, $name, $inject($file, $this->toExtends));
+                $this->buildLoadable($file, $name, $this->inject()($file));
             
             unset($this->files);
             $this->builded = true;
@@ -221,6 +179,57 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
                     $file,
                     (\is_object($resource) ? \get_class($resource) : \gettype($resource))));
         }
+    }
+    
+    /**
+     * Inject a resource file
+     * 
+     * @return \Closure
+     *   Closure needed a file to include
+     */
+    private function inject(): \Closure
+    {
+        return \Closure::bind(function(string $file) {
+            return include $file;
+        }, new class($this->toExtends) {
+            
+            /**
+             * Reference to extendables resources
+             *
+             * @var string[]
+             */
+            private $extendReference;
+            
+            /**
+             * Initialize extender
+             *
+             * @param array& $extendReference
+             *   Reference to local extendables resources array
+             */
+            public function __construct(array& $extendReference)
+            {
+                $this->extendReference =& $extendReference;
+            }
+            
+            /**
+             * Extends the parent resource to the resource
+             *
+             * @param string $parent
+             *   Parent resource name to extends
+             * @param ResourceInterface $resource
+             *   Resource name which the parent is inherited
+             *
+             * @return ResourceInterface
+             *   Resource added
+             */
+            public function extendsFromTo(string $parent, ResourceInterface $resource): ResourceInterface
+            {
+                $this->extendReference[$resource->getName()] = $parent;
+                
+                return $resource;
+            }
+            
+        });
     }
     
 }
