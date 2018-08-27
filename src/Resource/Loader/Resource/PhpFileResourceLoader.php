@@ -86,7 +86,7 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
             $this->buildFiles();
             
             foreach ($this->files as $name => $file)               
-                $this->buildLoadable($file, $name, $this->inject()($file));
+                $this->buildLoadable($file, $name, $this->inject($file)());
             
             unset($this->files);
             $this->builded = true;
@@ -184,12 +184,15 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
     /**
      * Inject a resource file
      * 
+     * @param string $file
+     *   File to inject
+     * 
      * @return \Closure
-     *   Closure needed a file to include
+     *   Closure with new scope attached to it
      */
-    private function inject(): \Closure
+    private function inject(string $file): \Closure
     {
-        return \Closure::bind(function(string $file) {
+        return \Closure::bind(function() use ($file) {
             return include $file;
         }, new class($this->toExtends) {
             
