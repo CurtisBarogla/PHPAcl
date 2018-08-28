@@ -26,7 +26,7 @@ use Psr\SimpleCache\CacheInterface;
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-class SimpleAcl implements AclInterface
+final class SimpleAcl implements AclInterface
 {
     
     /**
@@ -889,7 +889,7 @@ class SimpleAcl implements AclInterface
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-class AclProcessorWrapper
+final class AclProcessorWrapper
 {
     
     /**
