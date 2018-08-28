@@ -27,7 +27,7 @@ use Ness\Component\Acl\Exception\EntryNotFoundException;
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-class InheritanceEntryLoaderWrapper implements EntryLoaderInterface, ResourceLoaderAwareInterface
+class ResourceInheritanceEntryLoaderWrapper implements EntryLoaderInterface, ResourceLoaderAwareInterface
 {
     
     use ResourceLoaderAwareTrait;

@@ -14,7 +14,7 @@ namespace NessTest\Component\Acl\Resource\Loader\Entry;
 
 use NessTest\Component\Acl\AclTestCase;
 use Ness\Component\Acl\Resource\Loader\Entry\EntryLoaderInterface;
-use Ness\Component\Acl\Resource\Loader\Entry\InheritanceEntryLoaderWrapper;
+use Ness\Component\Acl\Resource\Loader\Entry\ResourceInheritanceEntryLoaderWrapper;
 use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderInterface;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\EntryNotFoundException;
@@ -22,18 +22,18 @@ use Ness\Component\Acl\Resource\ExtendableResourceInterface;
 use Ness\Component\Acl\Resource\EntryInterface;
 
 /**
- * InheritanceEntryLoaderWrapper testcase
+ * ResourceInheritanceEntryLoaderWrapper testcase
  * 
  * @see \Ness\Component\Acl\Resource\Loader\Entry\InheritanceEntryLoaderWrapper
  * 
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-class InheritanceEntryLoaderWrapperTest extends AclTestCase
+class ResourceInheritanceEntryLoaderWrapperTest extends AclTestCase
 {
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\Entry\InheritanceEntryLoaderWrapper::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Entry\ResourceInheritanceEntryLoaderWrapper::load()
      */
     public function testLoadWhenDirectlyLoaded(): void
     {
@@ -51,14 +51,14 @@ class InheritanceEntryLoaderWrapperTest extends AclTestCase
         ->method("load")->with($resource, "FooEntry", "FooProcessor")
         ->will($this->onConsecutiveCalls($this->returnValue($entry)));
         
-        $loader = new InheritanceEntryLoaderWrapper($wrapped);
+        $loader = new ResourceInheritanceEntryLoaderWrapper($wrapped);
         $loader->setLoader($resourceLoader);
         
         $this->assertSame($entry, $loader->load($resource, "FooEntry", "FooProcessor"));
     }
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\Entry\InheritanceEntryLoaderWrapper::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Entry\ResourceInheritanceEntryLoaderWrapper::load()
      */
     public function testLoadWhenLoadIntoParent(): void
     {
@@ -81,35 +81,35 @@ class InheritanceEntryLoaderWrapperTest extends AclTestCase
         ->method("load")->withConsecutive([$resource, "FooEntry", "FooProcessor"], [$parentResource, "FooEntry", "FooProcessor"])
         ->will($this->onConsecutiveCalls($this->throwException(new EntryNotFoundException()), $this->returnValue($entry)));
         
-        $loader = new InheritanceEntryLoaderWrapper($wrapped);
+        $loader = new ResourceInheritanceEntryLoaderWrapper($wrapped);
         $loader->setLoader($resourceLoader);
         
         $this->assertSame($entry, $loader->load($resource, "FooEntry", "FooProcessor"));
     }
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\Entry\InheritanceEntryLoaderWrapper::getLoader()
+     * @see \Ness\Component\Acl\Resource\Loader\Entry\ResourceInheritanceEntryLoaderWrapper::getLoader()
      */
     public function testGetLoader(): void
     {
         $wrapped = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();
         $resourceLoader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
         
-        $loader = new InheritanceEntryLoaderWrapper($wrapped);
+        $loader = new ResourceInheritanceEntryLoaderWrapper($wrapped);
         $loader->setLoader($resourceLoader);
         
         $this->assertSame($resourceLoader, $loader->getLoader());
     }
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\Entry\InheritanceEntryLoaderWrapper::setLoader()
+     * @see \Ness\Component\Acl\Resource\Loader\Entry\ResourceInheritanceEntryLoaderWrapper::setLoader()
      */
     public function testSetLoader(): void
     {
         $wrapped = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();
         $resourceLoader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
         
-        $loader = new InheritanceEntryLoaderWrapper($wrapped);
+        $loader = new ResourceInheritanceEntryLoaderWrapper($wrapped);
         
         $this->assertNull($loader->setLoader($resourceLoader));
     }
@@ -117,7 +117,7 @@ class InheritanceEntryLoaderWrapperTest extends AclTestCase
                     /**_____EXCEPTIONS_____**/
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\Entry\InheritanceEntryLoaderWrapper::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Entry\ResourceInheritanceEntryLoaderWrapper::load()
      */
     public function testExceptionLoadWhenNotExtendableAndNotFound(): void
     {
@@ -129,14 +129,14 @@ class InheritanceEntryLoaderWrapperTest extends AclTestCase
         $resourceLoader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
         $resourceLoader->expects($this->never())->method("load");
         
-        $loader = new InheritanceEntryLoaderWrapper($wrapped);
+        $loader = new ResourceInheritanceEntryLoaderWrapper($wrapped);
         $loader->setLoader($resourceLoader);
         
         $loader->load($resource, "FooEntry");
     }
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\Entry\InheritanceEntryLoaderWrapper::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Entry\ResourceInheritanceEntryLoaderWrapper::load()
      */
     public function testExceptionLoadWhenParentsResourcesNotFoundEntry(): void
     {
@@ -163,7 +163,7 @@ class InheritanceEntryLoaderWrapperTest extends AclTestCase
             ->method("load")->withConsecutive([$resource, "FooEntry", "FooProcessor"], [$parentResource, "FooEntry", "FooProcessor"], [$parentParentResource, "FooEntry", "FooProcessor"])
             ->will($this->onConsecutiveCalls($this->throwException(new EntryNotFoundException()), $this->throwException(new EntryNotFoundException()), $this->throwException(new EntryNotFoundException())));
         
-        $loader = new InheritanceEntryLoaderWrapper($wrapped);
+        $loader = new ResourceInheritanceEntryLoaderWrapper($wrapped);
         $loader->setLoader($resourceLoader);
         
         $loader->load($resource, "FooEntry", "FooProcessor");
