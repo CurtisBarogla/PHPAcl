@@ -244,6 +244,17 @@ final class AclUser implements AclUserInterface
     }
     
     /**
+     * Get reference to the wrapped user
+     * 
+     * @return UserInterface
+     *   Wrapped user
+     */
+    public function getUser(): UserInterface
+    {
+        return $this->user;
+    }
+    
+    /**
      * Queue given permission for the next call to on
      * 
      * @param string|array $permissions

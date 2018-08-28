@@ -215,6 +215,18 @@ class AclUserTest extends AclTestCase
         $this->assertFalse($user->isLocked($resource));
     }
     
+    /**
+     * @see \Ness\Component\Acl\User\AclUser::isLocked()
+     */
+    public function testGetUser(): void
+    {
+        $user = $this->getMockBuilder(UserInterface::class)->getMock();
+        
+        $aclUser = new AclUser($user);
+        
+        $this->assertSame($user, $aclUser->getUser());
+    }
+    
                     /**_____EXCEPTIONS_____**/
     
     /**
