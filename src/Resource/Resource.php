@@ -272,7 +272,7 @@ class Resource implements ResourceInterface, \Serializable
      * @throws PermissionNotFoundException
      *   When not setted
      */
-    private function checkPermission($permissions): int
+    protected function checkPermission($permissions): int
     {
         $exists = function(string $permission): int {
             if(!isset($this->permissions[$permission])) {
