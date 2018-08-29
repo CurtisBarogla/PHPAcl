@@ -5,6 +5,7 @@ vendor/
 composer.lock
 coverage/
 index.php
+index2.php
 auth.json
 todo.md
 fixtures/
