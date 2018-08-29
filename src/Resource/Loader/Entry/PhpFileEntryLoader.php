@@ -20,7 +20,8 @@ use Ness\Component\Acl\Resource\Entry;
 
 /**
  * Load a set of entries from a set of files.
- * Files can be either a single file or a directory containing entries
+ * Files can be either a single file or a directory containing entries.
+ * This implementation supports inheritance. Use "{entry}" as surrounding pattern to declare a parent entry
  * 
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
@@ -88,7 +89,7 @@ class PhpFileEntryLoader implements EntryLoaderInterface
             if($current instanceof EntryInterface && $current->getName() === $entry)
                 return $current;
             if(\is_array($current) && $index === $entry)
-                return $this->parse($index, $current);
+                return $this->parse($resource, $index, $current, $processor);
         }
         
         throw $this->getException($entry, $resource);
@@ -122,11 +123,17 @@ class PhpFileEntryLoader implements EntryLoaderInterface
      * @return EntryInterface
      *   Entry initialized
      */
-    private function parse(string $entry, array $permissions): EntryInterface
+    private function parse(ResourceInterface $resource, string $entry,  array $permissions, ?string $processor): EntryInterface
     {
         $entry = new Entry($entry);
-        foreach ($permissions as $permission)
-            $entry->addPermission($permission);
+        foreach ($permissions as $permission) {
+            if($this->isInheritable($permission)) {
+                $inherit = $this->load($resource, $this->normalizeInheritable($permission), $processor);
+                foreach ($inherit->getPermissions() as $permission)
+                    $entry->addPermission($permission);
+            } else
+                $entry->addPermission($permission);
+        }
         
         return $entry;
     }
@@ -164,6 +171,34 @@ class PhpFileEntryLoader implements EntryLoaderInterface
         return \Closure::bind(function() use ($file) {
             return include $file;
         }, null);
+    }
+    
+    /**
+     * Check if the entry has an inheritable permission.
+     * 
+     * @param string $entry
+     *   Permission referring to an entry
+     * 
+     * @return bool
+     *   True if the permission refer to an entry. False otherwise
+     */
+    private function isInheritable(string $permission): bool
+    {
+        return $permission[0] === '{' && false !== \mb_strpos($permission, '}', -1); 
+    }
+    
+    /**
+     * Get rid of the inheritance surrounding characters for loading the entry
+     * 
+     * @param string $entry
+     *   Entry to normalize
+     * 
+     * @return string
+     *   Normalized entry
+     */
+    private function normalizeInheritable(string $entry): string
+    {
+        return \mb_strcut($entry, 1, -1);
     }
 
 }

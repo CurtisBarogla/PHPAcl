@@ -56,8 +56,9 @@ class PhpFileEntryLoaderTest extends AclTestCase
         $entries[true][] = $loader->load($resource, "BarEntry", "FooProcessor");
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
-        $resource->expects($this->exactly(4))->method("getName")->will($this->returnValue("BarResource"));
+        $resource->expects($this->exactly(7))->method("getName")->will($this->returnValue("BarResource"));
         
+        $inheriteEntry = $loader->load($resource, "MozEntry");
         $entries[false][] = $loader->load($resource, "FooEntry");
         $entries[true][] = $loader->load($resource, "FooEntry", "FooProcessor");
         $entries[false][] = $loader->load($resource, "BarEntry");
@@ -83,6 +84,9 @@ class PhpFileEntryLoaderTest extends AclTestCase
                 $loop++;
             }
         }
+        
+        $this->assertSame("MozEntry", $inheriteEntry->getName());
+        $this->assertSame(["foo", "bar", "moz", "poz", "kek"], $inheriteEntry->getPermissions());
     }
     
                     /**_____EXCEPTIONS_____**/
@@ -148,6 +152,23 @@ class PhpFileEntryLoaderTest extends AclTestCase
         
         $loader = new PhpFileEntryLoader([$file]);
         $loader->load($resource, "BarEntry");
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\Resource\Loader\Entry\PhpFileEntryLoader::load()
+     */
+    public function testExceptionLoadWhenAnInvalidInheritanceEntryIsGiven(): void
+    {
+        $file = self::FIXTURES_DIRECTORY."/invalid/FAIL_INHERITANCE_ENTRIES.php";
+        
+        $this->expectException(EntryNotFoundException::class);
+        $this->expectExceptionMessage("This entry 'BarEntry' cannot be found for resource 'FAIL_INHERITANCE'");
+        
+        $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
+        $resource->expects($this->exactly(3))->method("getName")->will($this->returnValue("FAIL_INHERITANCE"));
+        
+        $loader = new PhpFileEntryLoader([$file]);
+        $loader->load($resource, "FooEntry");
     }
     
 }
