@@ -15,7 +15,7 @@ declare(strict_types = 1);
 use Ness\Component\Acl\Resource\Entry;
 
 return [
-    "MozEntry"  =>  ["{FooEntry}", "{BarEntry}", "kek"],
     (new Entry("BarEntry"))->addPermission("moz")->addPermission("poz"),
+    "MozEntry"  =>  ["{FooEntry}", "{BarEntry}", "kek"],
     "FooEntry"  =>  ["foo", "bar"]
 ];
