@@ -141,7 +141,7 @@ class ResourceInheritanceEntryLoaderWrapperTest extends AclTestCase
     public function testExceptionLoadWhenParentsResourcesNotFoundEntry(): void
     {
         $this->expectException(EntryNotFoundException::class);
-        $this->expectExceptionMessage("This entry 'FooEntry' cannot be found into resource 'BarResource' nor into its parents 'FooResource, ParentFooResource'");
+        $this->expectExceptionMessage("This entry 'FooEntry' is not loadable for resource 'BarResource' nor into its parents 'FooResource, ParentFooResource'");
         
         $resource = $this->getMockBuilder(ExtendableResourceInterface::class)->getMock();
         $resource->expects($this->exactly(2))->method("getParent")->will($this->returnValue("FooResource"));

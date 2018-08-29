@@ -80,7 +80,7 @@ class ResourceInheritanceEntryLoaderWrapper implements EntryLoaderInterface, Res
             }
         }
         
-        $exception = new EntryNotFoundException(\sprintf("This entry '%s' cannot be found into resource '%s' nor into its parents '%s'",
+        $exception = new EntryNotFoundException(\sprintf("This entry '%s' is not loadable for resource '%s' nor into its parents '%s'",
             $entry,
             $resource->getName(),
             \implode(", ", $visited)));
