@@ -88,8 +88,18 @@ class PhpFileEntryLoader implements EntryLoaderInterface
         foreach ($entries as $index => $current) {
             if($current instanceof EntryInterface && $current->getName() === $entry)
                 return $current;
-            if(\is_array($current) && $index === $entry)
-                return $this->parse($resource, $index, $current, $processor);
+            if(\is_array($current) && $index === $entry) {
+                $instance = new Entry($index);
+                foreach ($current as $permission) {
+                    if($this->isInheritable($permission)) {
+                        foreach ($this->load($resource, $this->normalizeInheritable($permission), $processor)->getPermissions() as $permission)
+                            $instance->addPermission($permission);                            
+                    } else
+                        $instance->addPermission($permission);                
+                }
+                
+                return $instance;
+            }
         }
         
         throw $this->getException($entry, $resource);
@@ -110,32 +120,6 @@ class PhpFileEntryLoader implements EntryLoaderInterface
     protected function getFilePatternName(ResourceInterface $resource, ?string $processor = null): string
     {
         return (null === $processor) ? "{$resource->getName()}_ENTRIES" : "{$resource->getName()}_{$processor}_ENTRIES";
-    }
-    
-    /**
-     * Parse an array representation of an entry
-     * 
-     * @param string $entry
-     *   Entry name
-     * @param array $permissions
-     *   Permissions applied to this entry
-     * 
-     * @return EntryInterface
-     *   Entry initialized
-     */
-    private function parse(ResourceInterface $resource, string $entry,  array $permissions, ?string $processor): EntryInterface
-    {
-        $entry = new Entry($entry);
-        foreach ($permissions as $permission) {
-            if($this->isInheritable($permission)) {
-                $inherit = $this->load($resource, $this->normalizeInheritable($permission), $processor);
-                foreach ($inherit->getPermissions() as $permission)
-                    $entry->addPermission($permission);
-            } else
-                $entry->addPermission($permission);
-        }
-        
-        return $entry;
     }
     
     /**
