@@ -35,11 +35,11 @@ interface AclInterface
      * @param string $permission
      *   Permission to check
      * @param \Closure|null $update
-     *   Update rights of the user over the given resource before the acl made its decision. 
-     *   Permissions updated here MUST NOT be propagated to other isAllowed calls
+     *   Update rights of the user over the given resource before the acl mades its decision. 
+     *   Permissions updated here MUST NOT be propagated to other isAllowed calls.
      *   This Closure takes as parameter the user currently processed by the acl.
-     *   Takes as second parameter, if, and only if, the given resource is and AclBindableInterface component, the component
-     *   If resource is an AclBindableInterface component and $update is provided, $update HAS the last word no matter what
+     *   Takes as second parameter, if, and only if, the given resource is an AclBindableInterface component, the component.
+     *   If resource is an AclBindableInterface component and $update is provided, $update HAS the last word no matter what.
      *   MUST return a boolean
      * 
      * @return bool
