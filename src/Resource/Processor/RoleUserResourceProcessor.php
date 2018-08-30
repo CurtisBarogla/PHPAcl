@@ -17,8 +17,8 @@ use Ness\Component\Acl\Resource\Loader\Entry\EntryLoaderInterface;
 use Ness\Component\Acl\Exception\EntryNotFoundException;
 
 /**
- * Grant permissions over all roles setted into the user depending the resource behaviour
- * If resource behaviour is setted to whitelist, all permissions from loaded entry will be granted.
+ * Grant permissions over all roles setted into the user depending the resource behaviour.
+ * If resource behaviour is setted to whitelist, all permissions from loaded entry will be granted. <br />
  * If resource behaviour is setted to blacklist, only the entry with the lowest permission value will be denied
  * 
  * @author CurtisBarogla <curtis_barogla@outlook.fr>

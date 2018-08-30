@@ -18,7 +18,7 @@ use Ness\Component\Acl\User\AclUser;
 use Ness\Component\Authentication\User\AuthenticatedUserInterface;
 
 /**
- * Grant root permission on root user
+ * Grant root permission on root user.
  * Permission are locked
  * 
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
