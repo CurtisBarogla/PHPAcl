@@ -182,7 +182,7 @@ class PhpFileEntryLoader implements EntryLoaderInterface
      */
     private function normalizeInheritable(string $entry): string
     {
-        return \mb_strcut($entry, 1, -1);
+        return \mb_substr($entry, 1, -1);
     }
 
 }
