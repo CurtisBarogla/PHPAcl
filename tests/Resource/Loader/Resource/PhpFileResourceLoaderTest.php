@@ -45,6 +45,7 @@ class PhpFileResourceLoaderTest extends AclTestCase
         self::FIXTURES_DIRECTORY."/valid/MozSimple.php",
         self::FIXTURES_DIRECTORY."/valid/FooSimple.php",
         self::FIXTURES_DIRECTORY."/valid/BarSimple.php",
+        self::FIXTURES_DIRECTORY."/valid/Behaviour.php",
         self::FIXTURES_DIRECTORY."/valid/directory"
     ];
     
@@ -128,6 +129,12 @@ class PhpFileResourceLoaderTest extends AclTestCase
         
         foreach ([$fooSimple, $barSimple, $mozSimple, $multipleFoo, $multipleBar, $multipleMoz, $multipleMoz, $combinedFoo, $combinedBar, $combinedMoz] as $resource)
             $this->assertSame(ResourceInterface::WHITELIST, $resource->getBehaviour());
+        
+        $whitelist = $loader->load("BehaviourFooResource");
+        $blacklist = $loader->load("BehaviourBarResource");
+        
+        $this->assertSame(ResourceInterface::WHITELIST, $whitelist->getBehaviour());        
+        $this->assertSame(ResourceInterface::BLACKLIST, $blacklist->getBehaviour());
     }
     
                     /**_____EXCEPTIONS_____**/
@@ -215,6 +222,51 @@ class PhpFileResourceLoaderTest extends AclTestCase
         $loader = new PhpFileResourceLoader([$file]);
         
         $loader->load("Bar");
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::load()
+     */
+    public function testExceptionLoadWhenAnInvalidBehaviourIsGivenIntoArrayResourceRepresentation(): void
+    {
+        $file = self::FIXTURES_DIRECTORY."/invalid/InvalidBehaviourString.php";
+        
+        $this->expectException(ParseErrorException::class);
+        $this->expectExceptionMessage("Resource behaviour given into file '{$file}' for resource 'InvalidBehaviour' is invalid. Valids values are whitelist or blacklist. 'foo' given");
+        
+        $loader = new PhpFileResourceLoader([$file]);
+        
+        $loader->load("InvalidBehaviour");
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::load()
+     */
+    public function testExceptionLoadWhenAnInvalidBehaviourObjectIsGivenIntoArrayResourceRepresentation(): void
+    {
+        $file = self::FIXTURES_DIRECTORY."/invalid/InvalidBehaviourObject.php";
+        
+        $this->expectException(ParseErrorException::class);
+        $this->expectExceptionMessage("Resource behaviour given into file '{$file}' for resource 'InvalidBehaviourObject' is invalid. Valids values are whitelist or blacklist. 'stdClass' given");
+        
+        $loader = new PhpFileResourceLoader([$file]);
+        
+        $loader->load("InvalidBehaviourObject");
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\PhpFileResourceLoader::load()
+     */
+    public function testExceptionLoadWhenAnInvalidBehaviourNotObjectButInvalidIsGivenIntoArrayResourceRepresentation(): void
+    {
+        $file = self::FIXTURES_DIRECTORY."/invalid/InvalidBehaviourNotObject.php";
+        
+        $this->expectException(ParseErrorException::class);
+        $this->expectExceptionMessage("Resource behaviour given into file '{$file}' for resource 'InvalidBehaviourOtherThanString' is invalid. Valids values are whitelist or blacklist. 'array' given");
+        
+        $loader = new PhpFileResourceLoader([$file]);
+        
+        $loader->load("InvalidBehaviourOtherThanString");
     }
     
 }

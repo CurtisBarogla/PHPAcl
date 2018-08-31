@@ -115,7 +115,20 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
      */
     private function parse(string $file, string $name, array $resource): ResourceInterface
     {
-        $instance = new Resource($name, $resource["behaviour"] ?? ResourceInterface::WHITELIST);
+        switch ($resource["behaviour"] ?? "whitelist") {
+            case "whitelist":
+                $behaviour = ResourceInterface::WHITELIST;
+                break;
+            case "blacklist":
+                $behaviour = ResourceInterface::BLACKLIST;
+                break;
+            default:
+                throw new ParseErrorException(\sprintf("Resource behaviour given into file '%s' for resource '%s' is invalid. Valids values are whitelist or blacklist. '%s' given",
+                    $file,
+                    $name,
+                    (\is_object($resource["behaviour"]) ? \get_class($resource["behaviour"]) : ( (\is_string($resource["behaviour"]) ? $resource["behaviour"] : \gettype($resource["behaviour"]))) )));
+        }
+        $instance = new Resource($name, $behaviour);
         if(isset($resource["extends"]))
             $this->toExtends[$name] = $resource["extends"];
         if(isset($resource["permissions"])) {
