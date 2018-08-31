@@ -28,6 +28,8 @@
 	},
 	"suggest" : {
 		"psr/simple-cache-implementation" : "A library providing PSR-16",
+		"psr/cache-implementation" : "A library providing PSR-6",
+		"cache/tag-interop" : "A cache library supporting tagging",
 		"ness/cache" : "To use cache mechanism",
 		"ness/authentication" : "To interact with authenticated users"
 	},
