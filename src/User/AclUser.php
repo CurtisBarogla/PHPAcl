@@ -34,13 +34,6 @@ final class AclUser implements AclUserInterface
     private $user;
     
     /**
-     * Current permission
-     * 
-     * @var int
-     */
-    private $permission = 0;
-    
-    /**
      * Permission queued for the call to on
      * 
      * @var array|string|null
@@ -125,18 +118,27 @@ final class AclUser implements AclUserInterface
      * {@inheritDoc}
      * @see \Ness\Component\Acl\User\AclUserInterface::getPermission()
      */
-    public function getPermission(): int
+    public function getPermission(ResourceInterface $resource): ?int
     {
-        return $this->permission;
+        if(null === $permissions = $this->getAttribute(self::ACL_ATTRIBUTE_IDENTIFIER))
+            return null;
+        
+        return $permissions["<{$resource->getName()}>"] ?? $permissions[$resource->getName()] ?? null;
     }
     
     /**
      * {@inheritDoc}
      * @see \Ness\Component\Acl\User\AclUserInterface::setPermission()
      */
-    public function setPermission(int $permission): void
+    public function setPermission(ResourceInterface $resource, int $permission): void
     {
-        $this->permission = $permission;
+        if(null === $permissions = $this->getAttribute(self::ACL_ATTRIBUTE_IDENTIFIER)) {
+            $this->addAttribute(self::ACL_ATTRIBUTE_IDENTIFIER, [$resource->getName() => $permission]);
+            return;
+        }
+        
+        $permissions[$resource->getName()] = $permission;
+        $this->addAttribute(self::ACL_ATTRIBUTE_IDENTIFIER, $permissions);
     }
     
     /**
@@ -210,26 +212,23 @@ final class AclUser implements AclUserInterface
      */
     public function lock(ResourceInterface $resource): void
     {
-        $attribute = null;
-        
-        $name = $resource->getName();
-        if($this->checkLocked($attribute, $name))
+        if($this->isLocked($resource))
             return;
         
         $this->on($resource);
         
-        if(null !== $attribute) {
-            if(isset($attribute[$name]))
-                unset($attribute[$name]);
-                
-            $attribute["<{$name}>"] = $this->permission;
-
-            $this->addAttribute(self::ACL_ATTRIBUTE_IDENTIFIER, $attribute);
+        if(null !== $permissions = $this->getAttribute(self::ACL_ATTRIBUTE_IDENTIFIER)) {
+            $name = $resource->getName();
+            if(isset($permissions[$name]))
+                unset($permissions[$name]);
+            
+            $permissions["<{$name}>"] = $this->getPermission($resource) ?? 0;
+            $this->addAttribute(self::ACL_ATTRIBUTE_IDENTIFIER, $permissions);
             
             return;
         }
         
-        $this->addAttribute(self::ACL_ATTRIBUTE_IDENTIFIER, ["<{$name}>" => $this->permission]);            
+        $this->addAttribute(self::ACL_ATTRIBUTE_IDENTIFIER, ["<{$resource->getName()}>" => $this->getPermission($resource) ?? 0]);            
     }
     
     /**
@@ -238,9 +237,7 @@ final class AclUser implements AclUserInterface
      */
     public function isLocked(ResourceInterface $resource): bool
     {
-        $attribute = null;
-        
-        return $this->checkLocked($attribute, $resource->getName());
+        return (null !== $permissions = $this->getAttribute(self::ACL_ATTRIBUTE_IDENTIFIER)) ? isset($permissions["<{$resource->getName()}>"]) : false;
     }
     
     /**
@@ -272,24 +269,6 @@ final class AclUser implements AclUserInterface
                 (\is_object($permissions) ? \get_class($permissions) : \gettype($permissions))));
             
         $this->permissionsQueue[][$type] = $permissions;
-    }
-    
-    /**
-     * Fetch the acl attribute and check if the resource is locked
-     * 
-     * @param array|null& $attribute
-     *   Attribute
-     * @param string $resourceName
-     *   Resource name to check
-     * 
-     * @return bool
-     *   True if the resource is locked. False otherwise
-     */
-    private function checkLocked(?array& $attribute, string $resourceName): bool
-    {
-        $attribute = $this->getAttribute(self::ACL_ATTRIBUTE_IDENTIFIER);
-
-        return null !== $attribute && isset($attribute["<{$resourceName}>"]);
     }
 
 }

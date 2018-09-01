@@ -17,7 +17,6 @@ use Ness\Component\Acl\User\AclUser;
 use Ness\Component\User\UserInterface;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
-use Ness\Component\Acl\User\AclUserInterface;
 
 /**
  * AclUser testcase
@@ -67,10 +66,21 @@ class AclUserTest extends AclTestCase
     public function testGetPermission(): void
     {
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
-        
+        $user
+            ->expects($this
+            ->exactly(4))
+            ->method("getAttribute")
+            ->withConsecutive([AclUser::ACL_ATTRIBUTE_IDENTIFIER])
+            ->will($this->onConsecutiveCalls(null, ["FooResource" => 42], ["BarResource" => 24], ["<FooResource>" => 42]));
+        $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
+        $resource->expects($this->exactly(5))->method("getName")->will($this->returnValue("FooResource"));
+            
         $user = new AclUser($user);
         
-        $this->assertSame(0, $user->getPermission());
+        $this->assertNull($user->getPermission($resource));
+        $this->assertSame(42, $user->getPermission($resource));
+        $this->assertNull($user->getPermission($resource));
+        $this->assertSame(42, $user->getPermission($resource));
     }
     
     /**
@@ -79,11 +89,27 @@ class AclUserTest extends AclTestCase
     public function testSetPermission(): void
     {
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
+        $user
+            ->expects($this->exactly(3))
+            ->method("getAttribute")
+            ->withConsecutive([AclUser::ACL_ATTRIBUTE_IDENTIFIER])
+            ->will($this->onConsecutiveCalls(null, [], ["BarResource" => 42]));
+        $user
+            ->expects($this->exactly(3))
+            ->method("addAttribute")
+            ->withConsecutive(
+                [AclUser::ACL_ATTRIBUTE_IDENTIFIER, ["FooResource" => 24]],
+                [AclUser::ACL_ATTRIBUTE_IDENTIFIER, ["FooResource" => 24]],
+                [AclUser::ACL_ATTRIBUTE_IDENTIFIER, ["BarResource" => 42, "FooResource" => 24]]);
+        
+        $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
+        $resource->expects($this->exactly(3))->method("getName")->will($this->returnValue("FooResource"));
         
         $user = new AclUser($user);
         
-        $this->assertNull($user->setPermission(2));
-        $this->assertSame(2, $user->getPermission());
+        $this->assertNull($user->setPermission($resource, 24));
+        $this->assertNull($user->setPermission($resource, 24));
+        $this->assertNull($user->setPermission($resource, 24));
     }
     
     /**
@@ -97,6 +123,18 @@ class AclUserTest extends AclTestCase
         
         $this->assertSame($user, $user->grant("foo"));
         $this->assertSame($user, $user->grant(["foo", "bar"]));
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\User\AclUser::grantRoot()
+     */
+    public function testGrantRoot(): void
+    {
+        $user = $this->getMockBuilder(UserInterface::class)->getMock();
+        
+        $user = new AclUser($user);
+        
+        $this->assertSame($user, $user->grantRoot());
     }
     
     /**
@@ -118,76 +156,110 @@ class AclUserTest extends AclTestCase
     public function testOn(): void
     {
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
-        $user
-            ->expects($this->exactly(4))
-            ->method("getAttribute")
-            ->withConsecutive([AclUserInterface::ACL_ATTRIBUTE_IDENTIFIER])
-            ->will($this->onConsecutiveCalls(
-                ["Foo" => 0],
-                ["Foo" => 0],
-                ["<Foo>" => 0],
-                ["Foo" => 0]));
+        $user->expects($this->once())->method("getAttribute")->will($this->returnValue(null));
+        
         $user = new AclUser($user);
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
-        $resource->expects($this->exactly(4))->method("getName")->will($this->returnValue("Foo"));
-        $resource->expects($this->exactly(2))->method("grant")->withConsecutive([ ["foo", "bar"] ], ["bar"]);
         $resource->expects($this->once())->method("grantRoot");
-        $resource->expects($this->exactly(2))->method("deny")->withConsecutive(["foo"], [ ["bar", "foo"] ]);
-        $resource->expects($this->exactly(3))->method("to")->with($user);
+        $resource->expects($this->once())->method("deny")->with("foo");
+        $resource->expects($this->once())->method("grant")->with("bar");
+        $resource->expects($this->once())->method("to")->with($user);
         
-        $this->assertNull($user->grant(["foo", "bar"])->deny("foo")->on($resource));
-        $this->assertNull($user->grant("bar")->deny(["bar", "foo"])->on($resource));
-        $this->assertNull($user->grant("bar")->on($resource));
+        $this->assertNull($user->grantRoot()->deny("foo")->grant("bar")->on($resource));
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\User\AclUser::on()
+     */
+    public function testOnWhenPermissionsQueueEmpty(): void
+    {
+        $user = $this->getMockBuilder(UserInterface::class)->getMock();
+        $user->expects($this->never())->method("getAttribute");
+        
+        $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
+        $resource->expects($this->never())->method("getName");
+        
+        $user = new AclUser($user);
+        
         $this->assertNull($user->on($resource));
-        $this->assertNull($user->grantRoot()->on($resource));
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\User\AclUser::on()
+     */
+    public function testOnWhenLocked(): void
+    {
+        $user = $this->getMockBuilder(UserInterface::class)->getMock();
+        $user->expects($this->once())->method("getAttribute")->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER)->will($this->returnValue(["<FooResource>" => 42]));
+            
+        $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
+        $resource->expects($this->once())->method("getName")->will($this->returnValue("FooResource"));
+        $resource->expects($this->never())->method("grant");
+        $resource->expects($this->never())->method("deny");
+        $resource->expects($this->never())->method("grantRoot");
+
+        $user = new AclUser($user);
+        
+        $this->assertNull($user->grant("foo")->on($resource));
     }
     
     /**
      * @see \Ness\Component\Acl\User\AclUser::lock()
      */
-    public function testLock(): void
+    public function testLockWhenLocked(): void
     {
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
-        $user->expects($this->once())->method("getAttribute")->with(AclUserInterface::ACL_ATTRIBUTE_IDENTIFIER)->will($this->returnValue(["<FooResource>" => 5]));
-        $user->expects($this->never())->method("addAttribute");
+        $user->expects($this->once())->method("getAttribute")->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER)->will($this->returnValue(["<FooResource>" => 42]));
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->once())->method("getName")->will($this->returnValue("FooResource"));
         
         $user = new AclUser($user);
         
-        $this->assertNull($user->lock($resource)    );
-        
+        $this->assertNull($user->grant("foo")->lock($resource));
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\User\AclUser::lock()
+     */
+    public function testLockWithNoPreviousResource(): void
+    {
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user
             ->expects($this->exactly(3))
             ->method("getAttribute")
-            ->withConsecutive([AclUserInterface::ACL_ATTRIBUTE_IDENTIFIER])
-            ->will($this->onConsecutiveCalls(
-                null,
-                ["FooResource" => 5, "BarResource" => 6],
-                ["BarResource" => 5]
-            ));
-        $user
-            ->expects($this->exactly(3))
-            ->method("addAttribute")
-            ->withConsecutive(
-                [AclUserInterface::ACL_ATTRIBUTE_IDENTIFIER, ["<FooResource>" => 10]],
-                [AclUserInterface::ACL_ATTRIBUTE_IDENTIFIER, ["BarResource" => 6, "<FooResource>" => 10]],
-                [AclUserInterface::ACL_ATTRIBUTE_IDENTIFIER, ["<BarResource>" => 10]]
-            );
+            ->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER)
+            ->will($this->returnValue(null));
+        $user->expects($this->once())->method("addAttribute")->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER, ["<FooResource>" => 0]);
+        
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
-        $resource
-            ->expects($this->exactly(3))
-            ->method("getName")
-            ->will($this->onConsecutiveCalls("FooResource", "FooResource", "BarResource"));
+        $resource->expects($this->once())->method("getName")->will($this->returnValue("FooResource"));
         
         $user = new AclUser($user);
-        $user->setPermission(10);
-        $user->lock($resource);
-        $user->lock($resource);
-        $user->lock($resource);
+        
+        $this->assertNull($user->lock($resource));
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\User\AclUser::lock()
+     */
+    public function testLockWithPreviousResource(): void
+    {
+        $user = $this->getMockBuilder(UserInterface::class)->getMock();
+        $user
+            ->expects($this->exactly(3))
+            ->method("getAttribute")
+            ->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER)
+            ->will($this->returnValue(["BarResource" => 20, "FooResource" => 42], ["BarResource" => 20, "FooResource" => 42], ["BarResource" => 20, "FooResource" => 42]));
+        $user->expects($this->once())->method("addAttribute")->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER, ["BarResource" => 20, "<FooResource>" => 42]);
+        
+        $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
+        $resource->expects($this->exactly(4))->method("getName")->will($this->returnValue("FooResource"));
+        
+        $user = new AclUser($user);
+        
+        $this->assertNull($user->lock($resource));
     }
     
     /**
@@ -199,20 +271,17 @@ class AclUserTest extends AclTestCase
         $user
             ->expects($this->exactly(3))
             ->method("getAttribute")
-            ->withConsecutive([AclUserInterface::ACL_ATTRIBUTE_IDENTIFIER])
-            ->will($this->onConsecutiveCalls(
-                ["<FooResource>" => 4],
-                ["FooResource" => 5],
-                null
-            ));
+            ->withConsecutive([AclUser::ACL_ATTRIBUTE_IDENTIFIER])
+            ->will($this->onConsecutiveCalls(null, ["FooResource" => 42], ["<FooResource>" => 42]));
+        
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
-        $resource->expects($this->exactly(3))->method("getName")->will($this->returnValue("FooResource"));
+        $resource->expects($this->exactly(2))->method("getName")->will($this->returnValue("FooResource"));
         
         $user = new AclUser($user);
         
+        $this->assertFalse($user->isLocked($resource));
+        $this->assertFalse($user->isLocked($resource));
         $this->assertTrue($user->isLocked($resource));
-        $this->assertFalse($user->isLocked($resource));
-        $this->assertFalse($user->isLocked($resource));
     }
     
     /**
@@ -271,12 +340,13 @@ class AclUserTest extends AclTestCase
         $exception->setPermission("foo");
         
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
+        $user->expects($this->once())->method("getAttribute")->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER)->will($this->returnValue(null));
         $user->expects($this->once())->method("getName")->will($this->returnValue("FooUser"));
         $user = new AclUser($user);
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->once())->method("grant")->with("foo")->will($this->throwException($exception));
-        $resource->expects($this->exactly(2))->method("getName")->will($this->returnValue("FooResource"));
+        $resource->expects($this->exactly(1))->method("getName")->will($this->returnValue("FooResource"));
         
         $user->grant("foo")->on($resource);
     }

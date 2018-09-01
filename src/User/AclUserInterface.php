@@ -33,20 +33,25 @@ interface AclUserInterface extends UserInterface
     public const ACL_ATTRIBUTE_IDENTIFIER = "ACL_RESOURCE";
     
     /**
-     * Get permission accorded
+     * Get permission accorded to the user for a resource
      * 
-     * @return int
-     *   Value representing the permission
+     * @param ResourceInterface
+     *   Resource to get the permission
+     * 
+     * @return int|null
+     *   Value representing the permission. Returns null if no permission found for this resource
      */
-    public function getPermission(): int;
+    public function getPermission(ResourceInterface $resource): ?int;
     
     /**
-     * Set permission accorded
+     * Set permission accorded to a resource
      * 
+     * @param ResourceInterface $resource
+     *   Resource to accord to permission
      * @param int $permission
      *   Value representing the permission
      */
-    public function setPermission(int $permission): void;
+    public function setPermission(ResourceInterface $resource, int $permission): void;
     
     /**
      * Grant permission over the resource setted into the next call of to
