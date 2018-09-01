@@ -79,7 +79,7 @@ class ResourceInheritanceEntryLoaderWrapperTest extends AclTestCase
         $wrapped
         ->expects($this->exactly(2))
         ->method("load")->withConsecutive([$resource, "FooEntry", "FooProcessor"], [$parentResource, "FooEntry", "FooProcessor"])
-        ->will($this->onConsecutiveCalls($this->throwException(new EntryNotFoundException()), $this->returnValue($entry)));
+        ->will($this->onConsecutiveCalls($this->throwException(new EntryNotFoundException("FooEntry")), $this->returnValue($entry)));
         
         $loader = new ResourceInheritanceEntryLoaderWrapper($wrapped);
         $loader->setLoader($resourceLoader);
@@ -125,7 +125,7 @@ class ResourceInheritanceEntryLoaderWrapperTest extends AclTestCase
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $wrapped = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();
-        $wrapped->expects($this->once())->method("load")->with($resource, "FooEntry", null)->will($this->throwException(new EntryNotFoundException()));
+        $wrapped->expects($this->once())->method("load")->with($resource, "FooEntry", null)->will($this->throwException(new EntryNotFoundException("FooEntry")));
         $resourceLoader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
         $resourceLoader->expects($this->never())->method("load");
         
@@ -157,11 +157,13 @@ class ResourceInheritanceEntryLoaderWrapperTest extends AclTestCase
         $resourceLoader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
         $resourceLoader->expects($this->exactly(2))->method("load")->withConsecutive(["FooResource"], ["ParentFooResource"])->will($this->onConsecutiveCalls($parentResource, $parentParentResource));
         
+        $exception = new EntryNotFoundException("FooEntry");
+        
         $wrapped = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();
         $wrapped
             ->expects($this->exactly(3))
             ->method("load")->withConsecutive([$resource, "FooEntry", "FooProcessor"], [$parentResource, "FooEntry", "FooProcessor"], [$parentParentResource, "FooEntry", "FooProcessor"])
-            ->will($this->onConsecutiveCalls($this->throwException(new EntryNotFoundException()), $this->throwException(new EntryNotFoundException()), $this->throwException(new EntryNotFoundException())));
+            ->will($this->onConsecutiveCalls($this->throwException($exception), $this->throwException($exception), $this->throwException($exception)));
         
         $loader = new ResourceInheritanceEntryLoaderWrapper($wrapped);
         $loader->setLoader($resourceLoader);

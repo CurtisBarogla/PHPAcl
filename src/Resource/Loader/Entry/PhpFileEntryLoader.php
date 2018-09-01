@@ -75,7 +75,7 @@ class PhpFileEntryLoader implements EntryLoaderInterface
         $file = $this->getFilePatternName($resource, $processor);
 
         if(!isset($this->files[$file]))
-            throw $this->getException($entry, $resource);
+            throw new EntryNotFoundException($entry, "This entry '{$entry}' cannot be found for resource '{$resource->getName()}'");
         
         $file = $this->files[$file];
             
@@ -103,7 +103,7 @@ class PhpFileEntryLoader implements EntryLoaderInterface
             }
         }
         
-        throw $this->getException($entry, $resource);
+        throw new EntryNotFoundException($entry, "This entry '{$entry}' cannot be found for resource '{$resource->getName()}'");
     }
     
     /**
@@ -121,25 +121,6 @@ class PhpFileEntryLoader implements EntryLoaderInterface
     protected function getFilePatternName(ResourceInterface $resource, ?string $processor = null): string
     {
         return (null === $processor) ? "{$resource->getName()}_ENTRIES" : "{$resource->getName()}_{$processor}_ENTRIES";
-    }
-    
-    /**
-     * Get an initialied EntryNotFoundException
-     * 
-     * @param string $entry
-     *   Entry not found
-     * @param ResourceInterface $resource
-     *   Resource which the entry is required
-     * 
-     * @return EntryNotFoundException
-     *   Exception initialized
-     */
-    private function getException(string $entry, ResourceInterface $resource): EntryNotFoundException
-    {
-        $exception = new EntryNotFoundException("This entry '{$entry}' cannot be found for resource '{$resource->getName()}'");
-        $exception->setEntry($entry);
-        
-        return $exception;
     }
     
     /**

@@ -739,15 +739,14 @@ final class SimpleAcl implements AclInterface
         
         if(null === $found) {
             if(isset($parents)) {
-                $exception = new EntryNotFoundException(\sprintf("This entry '%s' is not registered into resource '%s' nor into one of its parents '%s'",
+                $exception = new EntryNotFoundException($entry, \sprintf("This entry '%s' is not registered into resource '%s' nor into one of its parents '%s'",
                     $entry,
                     $resource[self::NAME_INDEX],
                     \implode(", ", \array_unique($parents))));
             } else {
-                $exception = new EntryNotFoundException("This entry '{$entry}' is not registered into resource '{$resource[self::NAME_INDEX]}'");                
+                $exception = new EntryNotFoundException($entry, "This entry '{$entry}' is not registered into resource '{$resource[self::NAME_INDEX]}'");                
             }
-            
-            $exception->setEntry($entry);
+
             throw $exception;
         }
         
@@ -991,7 +990,7 @@ final class AclProcessorWrapper
                 $this->mask |= \call_user_func($this->finder, $permission);
             } catch (EntryNotFoundException $e) {
                 if($this->strict)
-                    throw new EntryNotFoundException("This entry/permission '{$e->getEntry()}' cannot be processed into processor '{$this->identifier}'. See message : {$e->getMessage()}");
+                    throw new EntryNotFoundException($permission, "This entry/permission '{$e->getEntry()}' cannot be processed into processor '{$this->identifier}'. See message : {$e->getMessage()}");
             }   
         }
     }
@@ -1009,7 +1008,7 @@ final class AclProcessorWrapper
                 $this->mask &= ~(\call_user_func($this->finder, $permission));
             } catch (EntryNotFoundException $e) {
                 if($this->strict)
-                    throw new EntryNotFoundException("This entry/permission '{$e->getEntry()}' cannot be processed into processor '{$this->identifier}'. See message : {$e->getMessage()}");
+                    throw new EntryNotFoundException($permission, "This entry/permission '{$e->getEntry()}' cannot be processed into processor '{$this->identifier}'. See message : {$e->getMessage()}");
             }
         }
     }

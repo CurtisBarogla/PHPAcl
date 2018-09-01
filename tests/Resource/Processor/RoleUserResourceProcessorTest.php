@@ -70,7 +70,7 @@ class RoleUserResourceProcessorTest extends AclTestCase
                 [$resource, "Bar", "AclRoleUserProcessor"], 
                 [$resource, "Moz", "AclRoleUserProcessor"], 
                 [$resource, "Poz", "AclRoleUserProcessor"])
-            ->will($this->onConsecutiveCalls($entryFoo, $entryBar, $this->throwException(new EntryNotFoundException()), $entryMoz));
+            ->will($this->onConsecutiveCalls($entryFoo, $entryBar, $this->throwException(new EntryNotFoundException("FooEntry")), $entryMoz));
         
         $processor = new RoleUserResourceProcessor();
         $processor->setUser($user);
@@ -112,7 +112,7 @@ class RoleUserResourceProcessorTest extends AclTestCase
                 [$resource, "Bar", "AclRoleUserProcessor"],
                 [$resource, "Moz", "AclRoleUserProcessor"],
                 [$resource, "Poz", "AclRoleUserProcessor"])
-            ->will($this->onConsecutiveCalls($entryFoo, $entryBar, $this->throwException(new EntryNotFoundException()), $entryMoz));
+            ->will($this->onConsecutiveCalls($entryFoo, $entryBar, $this->throwException(new EntryNotFoundException("FooEntry")), $entryMoz));
             
         $processor = new RoleUserResourceProcessor();
         $processor->setUser($user);

@@ -57,7 +57,7 @@ class FallbackProcessorEntryLoaderWrapperTest extends AclTestCase
             ->expects($this->exactly(2))
             ->method("load")
             ->withConsecutive([$resource, "FooEntry", "FooProcessor"], [$resource, "FooEntry", null])
-            ->will($this->onConsecutiveCalls($this->throwException(new EntryNotFoundException()), $entryFound));
+            ->will($this->onConsecutiveCalls($this->throwException(new EntryNotFoundException("FooEntry")), $entryFound));
         
         $loader = new FallbackProcessorEntryLoaderWrapper($wrapped);
         
@@ -82,7 +82,7 @@ class FallbackProcessorEntryLoaderWrapperTest extends AclTestCase
             ->expects($this->exactly(2))
             ->method("load")
             ->withConsecutive([$resource, "FooEntry", "FooProcessor"], [$resource, "FooEntry", null])
-            ->will($this->throwException(new EntryNotFoundException()));
+            ->will($this->throwException(new EntryNotFoundException("FooEntry")));
         
         $loader = new FallbackProcessorEntryLoaderWrapper($wrapped);
         

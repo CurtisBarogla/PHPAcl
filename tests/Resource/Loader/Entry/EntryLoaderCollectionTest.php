@@ -52,7 +52,7 @@ class EntryLoaderCollectionTest extends AclTestCase
         $loaderBar = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();
         $loaderMoz = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();
         
-        $loaderFoo->expects($this->once())->method("load")->with($resource, "FooEntry", null)->will($this->throwException(new EntryNotFoundException()));
+        $loaderFoo->expects($this->once())->method("load")->with($resource, "FooEntry", null)->will($this->throwException(new EntryNotFoundException("FooEntry")));
         $loaderBar->expects($this->once())->method("load")->with($resource, "FooEntry", null)->will($this->returnValue($entry));
         $loaderMoz->expects($this->never())->method("load");
         
@@ -79,8 +79,8 @@ class EntryLoaderCollectionTest extends AclTestCase
         $loaderFoo = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();
         $loaderBar = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();
         
-        $loaderFoo->expects($this->once())->method("load")->with($resource, "FooEntry", null)->will($this->throwException(new EntryNotFoundException()));
-        $loaderBar->expects($this->once())->method("load")->with($resource, "FooEntry", null)->will($this->throwException(new EntryNotFoundException()));
+        $loaderFoo->expects($this->once())->method("load")->with($resource, "FooEntry", null)->will($this->throwException(new EntryNotFoundException("FooEntry")));
+        $loaderBar->expects($this->once())->method("load")->with($resource, "FooEntry", null)->will($this->throwException(new EntryNotFoundException("FooEntry")));
         
         $loader = new EntryLoaderCollection($loaderFoo);
         $loader->addLoader($loaderBar);

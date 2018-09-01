@@ -29,13 +29,19 @@ class EntryNotFoundException extends \Exception
     private $entry;
     
     /**
-     * Set not founded entry
+     * Initialize exception
      * 
      * @param string $entry
-     *   Entry name
+     *   Entry not found
+     * @param string $message
+     *   Exception message
+     * @param int $code
+     *   Exception code
+     * @param \Throwable $previous
      */
-    public function setEntry(string $entry): void
+    public function __construct(string $entry, string $message = "", int $code = 0, ?\Throwable $previous = null)
     {
+        parent::__construct($message, $code, $previous);
         $this->entry = $entry;
     }
     

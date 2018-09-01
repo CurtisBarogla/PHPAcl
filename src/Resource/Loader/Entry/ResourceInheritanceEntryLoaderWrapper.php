@@ -72,7 +72,7 @@ class ResourceInheritanceEntryLoaderWrapper implements EntryLoaderInterface, Res
         } catch (EntryNotFoundException $e) {
             foreach (ExtendableResource::generateParents($resource, $this->getLoader()) as $parent) {
                 try {
-                    return $this->wrapped->load($parent, $entry, $processor);
+                    return $this->wrapped->load($parent, $e->getEntry(), $processor);
                 } catch (EntryNotFoundException $e) {
                     $visited[] = $parent->getName();
                     continue;
@@ -80,13 +80,10 @@ class ResourceInheritanceEntryLoaderWrapper implements EntryLoaderInterface, Res
             }
         }
         
-        $exception = new EntryNotFoundException(\sprintf("This entry '%s' is not loadable for resource '%s' nor into its parents '%s'",
+        throw new EntryNotFoundException($entry, \sprintf("This entry '%s' is not loadable for resource '%s' nor into its parents '%s'",
             $entry,
             $resource->getName(),
             \implode(", ", $visited)));
-        $exception->setEntry($entry);
-        
-        throw $exception;
     }
 
 }

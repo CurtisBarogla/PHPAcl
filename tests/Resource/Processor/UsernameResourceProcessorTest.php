@@ -93,7 +93,7 @@ class UsernameResourceProcessorTest extends AclTestCase
         $user->expects($this->once())->method("getName")->will($this->returnValue("FooUser"));
         
         $loader = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();
-        $loader->expects($this->once())->method("load")->with($resource, "FooUser", "AclUsernameProcessor")->will($this->throwException(new EntryNotFoundException()));
+        $loader->expects($this->once())->method("load")->with($resource, "FooUser", "AclUsernameProcessor")->will($this->throwException(new EntryNotFoundException("FooUser")));
         
         $processor = new UsernameResourceProcessor();
         $processor->setUser($user);
