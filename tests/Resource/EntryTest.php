@@ -27,6 +27,23 @@ class EntryTest extends AclTestCase
 {
     
     /**
+     * @see \Ness\Component\Acl\Resource\Entry::getIterator()
+     */
+    public function testGetIterator(): void
+    {
+        $entry = new Entry("Foo");
+        $value = \iterator_to_array($entry->getIterator());
+        
+        $this->assertSame([], $value);
+        
+        $entry->addPermission("foo")->addPermission("bar");
+        
+        $value = \iterator_to_array($entry->getIterator());
+        
+        $this->assertSame(["foo", "bar"], $value);
+    }
+    
+    /**
      * @see \Ness\Component\Acl\Resource\Entry::getName()
      */
     public function testGetName(): void
@@ -45,7 +62,7 @@ class EntryTest extends AclTestCase
         
         $this->assertSame([], $entry->getPermissions());
         
-        $entry->addPermission("foo")->addPermission("bar");
+        $entry->addPermission("foo")->addPermission("bar")->addPermission("foo");
         
         $this->assertSame(["foo", "bar"], $entry->getPermissions());
     }

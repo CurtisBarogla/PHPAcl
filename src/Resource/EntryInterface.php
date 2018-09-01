@@ -18,7 +18,7 @@ namespace Ness\Component\Acl\Resource;
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-interface EntryInterface
+interface EntryInterface extends \IteratorAggregate
 {
     
     /**

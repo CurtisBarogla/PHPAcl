@@ -38,6 +38,7 @@ class EntryNotFoundException extends \Exception
      * @param int $code
      *   Exception code
      * @param \Throwable $previous
+     *   Previous exception
      */
     public function __construct(string $entry, string $message = "", int $code = 0, ?\Throwable $previous = null)
     {

@@ -48,6 +48,16 @@ class Entry implements EntryInterface
     
     /**
      * {@inheritDoc}
+     * @see \IteratorAggregate::getIterator()
+     */
+    public function getIterator(): \Generator
+    {
+        foreach ($this->getPermissions() as $permission)
+            yield $permission;
+    }
+    
+    /**
+     * {@inheritDoc}
      * @see \Ness\Component\Acl\Resource\EntryInterface::getName()
      */
     public function getName(): string
@@ -61,7 +71,7 @@ class Entry implements EntryInterface
      */
     public function getPermissions(): array
     {
-        return $this->permissions ?? [];
+        return \array_unique($this->permissions ?? []);
     }
 
     /**
