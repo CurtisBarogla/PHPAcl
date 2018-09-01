@@ -43,7 +43,7 @@ trait FileLoaderTrait
         foreach ($this->files as $index => $file) {
             if(\is_dir($file)) {
                 foreach (new \DirectoryIterator($file) as $file) {
-                    if($file->isDot()) continue;
+                    if($file->isDot() || $file->isDir()) continue;
                     $this->files[$file->getBasename(".php")] = $file->getPathname();
                 }
             } else {
