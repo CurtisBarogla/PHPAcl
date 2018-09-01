@@ -69,7 +69,6 @@ class PhpFileEntryLoader implements EntryLoaderInterface
     {
         if(!$this->builded) {
             $this->buildFiles();
-            
             $this->builded = true;
         }
         
@@ -80,7 +79,9 @@ class PhpFileEntryLoader implements EntryLoaderInterface
         
         $file = $this->files[$file];
             
-        $entries = $this->inject($file)();
+        $entries = \Closure::bind(function() use ($file) {
+            return include $file;
+        }, null)();
 
         if(!\is_array($entries))
             throw new \LogicException("This file '{$file}' MUST return an array representing all entries loadables for resource '{$resource->getName()}'");
@@ -92,7 +93,7 @@ class PhpFileEntryLoader implements EntryLoaderInterface
                 $instance = new Entry($index);
                 foreach ($current as $permission) {
                     if($this->isInheritable($permission)) {
-                        foreach ($this->load($resource, $this->normalizeInheritable($permission), $processor)->getPermissions() as $permission)
+                        foreach ($this->load($resource, $permission, $processor)->getPermissions() as $permission)
                             $instance->addPermission($permission);                            
                     } else
                         $instance->addPermission($permission);                
@@ -142,47 +143,24 @@ class PhpFileEntryLoader implements EntryLoaderInterface
     }
     
     /**
-     * Inject a file restricting access to this
-     * 
-     * @param string $file
-     *   File name
-     * 
-     * @return \Closure
-     *   Closure to call
-     */
-    private function inject(string $file): \Closure
-    {
-        return \Closure::bind(function() use ($file) {
-            return include $file;
-        }, null);
-    }
-    
-    /**
      * Check if the entry has an inheritable permission.
+     * If given entry is inheritable, surrounding characters marking the inheritable state will be removed 
      * 
-     * @param string $entry
+     * @param string& $permission
      *   Permission referring to an entry
      * 
      * @return bool
      *   True if the permission refer to an entry. False otherwise
      */
-    private function isInheritable(string $permission): bool
+    private function isInheritable(string& $entry): bool
     {
-        return $permission[0] === '{' && false !== \mb_strpos($permission, '}', -1); 
-    }
-    
-    /**
-     * Get rid of the inheritance surrounding characters for loading the entry
-     * 
-     * @param string $entry
-     *   Entry to normalize
-     * 
-     * @return string
-     *   Normalized entry
-     */
-    private function normalizeInheritable(string $entry): string
-    {
-        return \mb_substr($entry, 1, -1);
+        if($entry[0] === '{' && false !== \mb_strpos($entry, '}', -1)) {
+            $entry = \mb_substr($entry, 1, -1);
+            
+            return true;
+        }
+        
+        return false;
     }
 
 }
