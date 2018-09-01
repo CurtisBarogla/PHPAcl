@@ -132,11 +132,7 @@ class Resource implements ResourceInterface, \Serializable
     public function grantRoot(): ResourceInterface
     {
         $this->actions[] = function(int $current): int {
-            $root = 0;
-            foreach ($this->permissions as $value)
-                $root|= $value;
-            
-            return $root;
+            return \array_sum($this->permissions);
         };
         
         return $this;
@@ -169,12 +165,12 @@ class Resource implements ResourceInterface, \Serializable
             return;
         }
             
-        $current = $user->getPermission();
-        
+        $current = $user->getPermission($this) ?? ( ($this->behaviour === self::WHITELIST) ? 0 : \array_sum($this->permissions) );
+
         foreach ($this->actions as $action)
             $current = $action->call($this, $current);
-        
-        $user->setPermission($current);
+
+        $user->setPermission($this, $current);
         
         $this->actions = null;
     }

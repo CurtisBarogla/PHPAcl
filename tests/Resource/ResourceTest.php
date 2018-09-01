@@ -98,7 +98,7 @@ class ResourceTest extends AclTestCase
     /**
      * @see \Ness\Component\Acl\Resource\Resource::to()
      */
-    public function testTo(): void        
+    public function testToWhenNoActions(): void
     {
         $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
         
@@ -107,15 +107,79 @@ class ResourceTest extends AclTestCase
         $resource->addPermission("moz");
         
         $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
-        $user->expects($this->exactly(3))->method("getPermission")->will($this->onConsecutiveCalls(0, 3, 0));
-        $user->expects($this->exactly(3))->method("setPermission")->withConsecutive([3], [0], [7]);
-        $user->expects($this->exactly(4))->method("isLocked")->withConsecutive([$resource])->will($this->onConsecutiveCalls(false, false, true, false));
+        $user->expects($this->never())->method("getPermission");
         
-        $resource->grant(["foo", "bar"])->deny("foo")->grant("foo")->to($user);
-        $resource->deny(["foo", "bar"])->grant("foo")->deny("foo")->to($user);
         $this->assertNull($resource->to($user));
-        $resource->deny(["foo", "bar"])->grant("foo")->to($user);
-        $resource->grantRoot()->to($user);
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\Resource\Resource::to()
+     */
+    public function testToWhenLocked(): void        
+    {
+        $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
+        
+        $resource->addPermission("foo");
+        $resource->addPermission("bar");
+        $resource->addPermission("moz");
+        
+        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user->expects($this->once())->method("isLocked")->with($resource)->will($this->returnValue(true));
+        $user->expects($this->never())->method("getPermission");
+        
+        $this->assertNull($resource->grant("foo")->to($user));
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\Resource\Resource::to()
+     */
+    public function testToWhenNoPermissionSetted(): void
+    {
+        $resource = new Resource("Foo", ResourceInterface::BLACKLIST);
+        
+        $resource->addPermission("foo");
+        $resource->addPermission("bar");
+        $resource->addPermission("moz");
+        
+        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user->expects($this->once())->method("isLocked")->with($resource)->will($this->returnValue(false));
+        $user->expects($this->once())->method("getPermission")->with($resource)->will($this->returnValue(null));
+        $user->expects($this->once())->method("setPermission")->with($resource, 3);
+        
+        $this->assertNull($resource->deny("moz")->to($user));
+        
+        $resource = new Resource("Foo");
+        
+        $resource->addPermission("foo");
+        $resource->addPermission("bar");
+        $resource->addPermission("moz");
+        
+        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user->expects($this->exactly(2))->method("isLocked")->with($resource)->will($this->returnValue(false));
+        $user->expects($this->exactly(2))->method("getPermission")->with($resource)->will($this->returnValue(null));
+        $user->expects($this->exactly(2))->method("setPermission")->withConsecutive([$resource, 3], [$resource, 7]);
+        
+        $this->assertNull($resource->grant("foo")->grant("bar")->to($user));
+        $this->assertNull($resource->grantRoot()->to($user));
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\Resource\Resource::to()
+     */
+    public function testToWhenAPermissionIsSetted(): void
+    {
+        $resource = new Resource("Foo");
+        
+        $resource->addPermission("foo");
+        $resource->addPermission("bar");
+        $resource->addPermission("moz");
+        
+        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user->expects($this->once())->method("isLocked")->with($resource)->will($this->returnValue(false));
+        $user->expects($this->once())->method("getPermission")->with($resource)->will($this->returnValue(7));
+        $user->expects($this->once())->method("setPermission")->withConsecutive([$resource, 3]);
+        
+        $this->assertNull($resource->deny("moz")->to($user));
     }
     
     /**
