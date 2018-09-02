@@ -46,14 +46,14 @@ class Acl implements AclInterface
     /**
      * Processor executes when acl mades it decision
      * 
-     * @var ResourceProcessorInterface
+     * @var ResourceProcessorInterface[]
      */
     private $processors;
     
     /**
      * Resources already loaded
      * 
-     * @var ResourceInterface
+     * @var ResourceInterface[]
      */
     private $resources;
     
@@ -63,6 +63,13 @@ class Acl implements AclInterface
      * @var int[]
      */
     private $fetched;
+    
+    /**
+     * Acl users loaded
+     * 
+     * @var AclUserInterface[]
+     */
+    private $loaded;
     
     /**
      * Initialize acl
@@ -86,39 +93,32 @@ class Acl implements AclInterface
     {
         $bindable = null;
         $instance = $this->validateAndLoadResource($resource, $bindable);
+        $username = $user->getName();
+        $user = $this->loaded[$username] ?? ( $this->loaded[$username] = new AclUser($user) );
+        $mask = $user->getPermission($instance);
         $required = $this->getPermission($instance, $resource, $permission);
-        $locked = false;
-        $masks = null;
-        $mask = $this->initializeMaskUser($user, $resource, $locked, $masks);
         
-        if($locked || (null !== $mask && !isset($bindable) && null === $update) )    
-            return (bool) ( ($mask & $required) === $required );
-        
-        if(null === $mask) {
-            $aclUser = new AclUser($user);
-            if($instance->getBehaviour() === ResourceInterface::BLACKLIST)
-                $instance->grantRoot()->to($aclUser);
-            if(null !== $result = $this->executeProcessors($instance, $aclUser, $required))
-                return $result;
-            
-            $masks[$resource] = $mask = $aclUser->getPermission();
-            $user->addAttribute(AclUser::ACL_ATTRIBUTE_IDENTIFIER, $masks);
-        }
-        
-        if(null === $update && null === $bindable)
+        if($user->isLocked($instance) || (null !== $mask && !isset($bindable) && null === $update) ) 
             return (bool) ( ($mask & $required) === $required );
 
+        if(null === $mask) {
+            ($instance->getBehaviour() === ResourceInterface::BLACKLIST) ? $instance->grantRoot()->to($user) : $user->setPermission($instance, 0);
+            if(null !== $lockResult = $this->executeProcessors($instance, $user, $required)) {
+                unset($this->loaded[$username]);
+                return $lockResult;
+            }
+            $mask = $user->getPermission($instance);
+            unset($this->loaded[$username]);
+        }
+        
+        if(null === $bindable && null === $update)
+            return (bool) ( ($mask & $required) === $required );
+        
         $result = (bool) ( ($mask & $required) === $required );
-            
-        $update = (null !== $update)
-            ? ((null !== $bindable)
-                ? $update($user, $bindable)
-                : $update($user))
-            : $bindable->updateAclPermission($user, $permission, $result);
-            
-        if(null === $update)
+
+        if(null === $update = $this->defineUpdate($update, $bindable, $user, $permission, $result))
             return $result;
-                    
+                     
         return ($instance->getBehaviour() === ResourceInterface::WHITELIST) ? $update : !$update;
     }
     
@@ -147,7 +147,39 @@ class Acl implements AclInterface
     }
     
     /**
-     * Execute all registered acl processor
+     * Determine which update must be applied
+     * 
+     * @param \Closure $update
+     *   Update closure
+     * @param AclBindableInterface $bindable
+     *   Update through bindable
+     * @param UserInterface
+     *   User linked to the update process
+     * @param string $permission
+     *   Permission currently handled
+     * @param bool $result
+     *   Current acl decision
+     * 
+     * @return bool|null
+     *   An update result
+     */
+    private function defineUpdate(
+        ?\Closure $update, 
+        ?AclBindableInterface $bindable, 
+        UserInterface $user, 
+        string $permission, 
+        bool $result): ?bool
+    {
+        if(null !== $update) {
+            $update = (null !== $bindable) ? $update($user, $bindable) : $update($user);    
+            return (null !== $update) ? $update : ( (null !== $bindable) ? $bindable->updateAclPermission($user, $permission, $result) : null);
+        }
+        
+        return (null !== $bindable) ? $bindable->updateAclPermission($user, $permission, $result) : null;
+    }
+    
+    /**
+     * Execute all registered acl processors
      * 
      * @param ResourceInterface $resource
      *   Resource which the processor is executed
@@ -169,42 +201,10 @@ class Acl implements AclInterface
             $processor->process($resource, $this->entryLoader);
             
             if($user->isLocked($resource))
-                return (bool) ( ($user->getPermission() & $required) === $required );
+                return (bool) ( ($user->getPermission($resource) & $required) === $required );
         }
         
         return null;
-    }
-    
-    /**
-     * Initializer user mask permission from its attributes
-     * 
-     * @param UserInterface $user
-     *   User
-     * @param string $resourceName
-     *   Resource name
-     * @param bool& $locked
-     *   Setted to true if the user has a locked resource into its attributes
-     * @param array|null& $masks
-     *   Reference to all registered masked into user attribute
-     * 
-     * @return int|null
-     *   The permission mask or null if the user has no attribute for the given resource
-     */
-    private function initializeMaskUser(UserInterface $user, string $resourceName, bool& $locked, ?array& $masks): ?int
-    {
-        if(null === $masks = $user->getAttribute(AclUser::ACL_ATTRIBUTE_IDENTIFIER)) {
-            $user->addAttribute(AclUser::ACL_ATTRIBUTE_IDENTIFIER, [$resourceName => 0]);
-            
-            return null;
-        }
-        
-        if(isset($masks["<{$resourceName}>"])) {
-            $locked = true;
-            
-            return $masks["<{$resourceName}>"];
-        }
-        
-        return $masks[$resourceName] ?? null;
     }
     
     /**

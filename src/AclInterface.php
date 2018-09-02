@@ -41,7 +41,8 @@ interface AclInterface
      *   This Closure takes as parameter the user currently processed by the acl. <br />
      *   Takes as second parameter, if, and only if, the given resource is an AclBindableInterface component, the component. <br />
      *   If resource is an AclBindableInterface component and $update is provided, $update HAS the last word no matter what. <br />
-     *   MUST return a boolean
+     *   MUST return a boolean or null if no update <br />
+     *   If the update returns null and the resource is an AclBindableInterface component, the acl will dump on it
      * 
      * @return bool
      *   True if the user can perform all actions over given permissions
