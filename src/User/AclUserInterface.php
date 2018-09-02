@@ -35,7 +35,7 @@ interface AclUserInterface extends UserInterface
     /**
      * Get permission accorded to the user for a resource
      * 
-     * @param ResourceInterface
+     * @param ResourceInterface $resource
      *   Resource to get the permission
      * 
      * @return int|null

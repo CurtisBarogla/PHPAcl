@@ -41,6 +41,20 @@ final class AclUser implements AclUserInterface
     private $permissionsQueue;
     
     /**
+     * Resource locked
+     * 
+     * @var bool[]
+     */
+    private $locked;
+    
+    /**
+     * Already fetched permissions
+     * 
+     * @var int[]
+     */
+    private $fetched;
+    
+    /**
      * Initialize acl user
      * 
      * @param UserInterface $user
@@ -120,10 +134,14 @@ final class AclUser implements AclUserInterface
      */
     public function getPermission(ResourceInterface $resource): ?int
     {
+        $name = $resource->getName();
+        if(isset($this->fetched[$name]))
+            return $this->fetched[$name];
+        
         if(null === $permissions = $this->getAttribute(self::ACL_ATTRIBUTE_IDENTIFIER))
             return null;
         
-        return $permissions["<{$resource->getName()}>"] ?? $permissions[$resource->getName()] ?? null;
+        return $this->fetched[$name] = ($permissions["<{$name}>"] ?? $permissions[$name] ?? null);
     }
     
     /**
@@ -137,8 +155,10 @@ final class AclUser implements AclUserInterface
             return;
         }
         
-        $permissions[$resource->getName()] = $permission;
+        $name = $resource->getName();
+        $permissions[$name] = $permission;
         $this->addAttribute(self::ACL_ATTRIBUTE_IDENTIFIER, $permissions);
+        unset($this->fetched[$name]);
     }
     
     /**
@@ -180,8 +200,10 @@ final class AclUser implements AclUserInterface
      */
     public function on(ResourceInterface $resource): void
     {
-        if(null === $this->permissionsQueue)
+        if(null === $this->permissionsQueue) {
+            unset($this->fetched[$resource->getName()]);
             return;
+        }
         
         if($this->isLocked($resource)) {
             $this->permissionsQueue = null;
@@ -198,7 +220,8 @@ final class AclUser implements AclUserInterface
                 }
             }
 
-            $resource->to($this);                    
+            $resource->to($this);
+            unset($this->fetched[$resource->getName()]);
         } catch (PermissionNotFoundException $e) {
             throw new PermissionNotFoundException("This permission '{$e->getPermission()}' cannot be attributed to user '{$this->getName()}' as it is not defined into resource '{$resource->getName()}'");
         } finally {
@@ -224,10 +247,12 @@ final class AclUser implements AclUserInterface
             
             $permissions["<{$name}>"] = $this->getPermission($resource) ?? 0;
             $this->addAttribute(self::ACL_ATTRIBUTE_IDENTIFIER, $permissions);
+            $this->locked[$name] = true;
             
             return;
         }
         
+        $this->locked[$resource->getName()] = true;
         $this->addAttribute(self::ACL_ATTRIBUTE_IDENTIFIER, ["<{$resource->getName()}>" => $this->getPermission($resource) ?? 0]);            
     }
     
@@ -237,7 +262,9 @@ final class AclUser implements AclUserInterface
      */
     public function isLocked(ResourceInterface $resource): bool
     {
-        return (null !== $permissions = $this->getAttribute(self::ACL_ATTRIBUTE_IDENTIFIER)) ? isset($permissions["<{$resource->getName()}>"]) : false;
+        $name = $resource->getName();
+        return $this->locked[$name] 
+                    ?? $this->locked[$name] = ( (null !== $permissions = $this->getAttribute(self::ACL_ATTRIBUTE_IDENTIFIER)) ? isset($permissions["<{$name}>"]) : false );
     }
     
     /**
