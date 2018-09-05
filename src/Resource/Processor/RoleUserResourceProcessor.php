@@ -45,7 +45,6 @@ class RoleUserResourceProcessor extends AbstractResourceProcessor
                         case ResourceInterface::BLACKLIST:
                             $permissions = $loader->load($resource, $role, $this->getIdentifier());
                             $ref[$resource->getPermission($permissions->getPermissions())] = $permissions;
-                            \ksort($ref);
                             break;
                     }
                 } catch (EntryNotFoundException $e) {
@@ -54,8 +53,10 @@ class RoleUserResourceProcessor extends AbstractResourceProcessor
                 }
             }
 
-            if(isset($ref))
+            if(isset($ref)) {
+                \ksort($ref);                
                 $resource->deny(\current($ref)->getPermissions());
+            }
             
             $resource->to($this->getUser());
         }
