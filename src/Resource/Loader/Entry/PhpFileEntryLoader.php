@@ -93,7 +93,7 @@ class PhpFileEntryLoader implements EntryLoaderInterface
                 $instance = new Entry($index);
                 foreach ($current as $permission) {
                     if($this->isInheritable($permission)) {
-                        foreach ($this->load($resource, $permission, $processor)->getPermissions() as $permission)
+                        foreach ($this->load($resource, $permission, $processor) as $permission)
                             $instance->addPermission($permission);                            
                     } else
                         $instance->addPermission($permission);                
