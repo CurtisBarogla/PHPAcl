@@ -39,7 +39,7 @@ class ExtendableResourceTest extends AclTestCase
         $parent->expects($this->exactly(2))->method("getBehaviour")->will($this->returnValue(ResourceInterface::WHITELIST));
         $parent->expects($this->exactly(2))->method("getPermissions")->will($this->returnValue(["foo", "bar"]));
         
-        foreach ([new ExtendableResource("Bar", ResourceInterface::BLACKLIST), new ExtendableResource("Moz", ResourceInterface::WHITELIST, $parent)] as $resource) {
+        foreach ([new ExtendableResource("Bar"), new ExtendableResource("Moz", $parent)] as $resource) {
             if($resource->getName() === "Bar") {
                 $resource->addPermission("foo");
                 $resource->extendsFrom($parent);

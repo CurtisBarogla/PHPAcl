@@ -36,17 +36,15 @@ class ExtendableResource extends Resource implements ExtendableResourceInterface
      *
      * @param string $name
      *   Resource name
-     * @param int $behaviour
-     *   Resource behaviour. One of the const defined into the interface. By default will be setted to whitelist
      * @param ResourceInterface|null $parent
      *   Parent resource or null for later assignation
      *
      * @throws InvalidArgumentException
      *   When behaviour is invalid
      */
-    public function __construct(string $name, int $behaviour = ResourceInterface::WHITELIST, ?ResourceInterface $parent = null)
+    public function __construct(string $name, ?ResourceInterface $parent = null)
     {
-        parent::__construct($name, $behaviour);
+        $this->name = $name;
         if(null !== $parent)
             $this->extendsFrom($parent);
     }
@@ -141,7 +139,8 @@ class ExtendableResource extends Resource implements ExtendableResourceInterface
         if($resource instanceof ExtendableResourceInterface)
             return $resource;
         
-        $extendable = new self($resource->getName(), $resource->getBehaviour());
+        $extendable = new self($resource->getName());
+        $extendable->behaviour = $resource->getBehaviour();
         foreach ($resource->getPermissions() as $permission)
             $extendable->addPermission($permission);
         
