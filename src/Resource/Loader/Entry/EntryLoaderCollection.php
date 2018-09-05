@@ -17,7 +17,7 @@ use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\EntryNotFoundException;
 
 /**
- * Try to load an entry froma set of EntryLoaderInterface
+ * Try to load an entry from a set of EntryLoaderInterface
  * 
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
