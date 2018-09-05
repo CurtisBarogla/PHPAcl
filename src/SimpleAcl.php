@@ -232,8 +232,8 @@ final class SimpleAcl implements AclInterface
         
         $update = (null !== $update) 
                         ? ((null !== $bindable) 
-                            ? $update($user, $bindable) 
-                            : $update($user)) 
+                            ? (null !== ($call = $update($user, $bindable)) ? $call : $bindable->updateAclPermission($user, $permission, $result)) 
+                            : (null !== ($call = $update($user)) ? $call : $bindable->updateAclPermission($user, $permission, $result)))
                         : $bindable->updateAclPermission($user, $permission, $result);
             
         if(null === $update)

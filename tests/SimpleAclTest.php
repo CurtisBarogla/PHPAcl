@@ -147,11 +147,11 @@ class SimpleAclTest extends TestCase
     public function testIsAllowedWithAclBindableActingOnResourceBlacklist(): void
     {
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
-        $user->expects($this->exactly(4))->method("getAttribute")->with(SimpleAcl::ACL_USER_ATTRIBUTE)->will($this->returnValue(["FooResource" => 7]));
+        $user->expects($this->exactly(5))->method("getAttribute")->with(SimpleAcl::ACL_USER_ATTRIBUTE)->will($this->returnValue(["FooResource" => 7]));
         
         $resource = $this->getMockBuilder(AclBindableInterface::class)->getMock();
-        $resource->expects($this->exactly(4))->method("getAclResourceName")->will($this->returnValue("FooResource"));
-        $resource->expects($this->exactly(3))->method("updateAclPermission")->withConsecutive([$user, "foo", true])->will($this->onConsecutiveCalls(null, true, false));
+        $resource->expects($this->exactly(5))->method("getAclResourceName")->will($this->returnValue("FooResource"));
+        $resource->expects($this->exactly(4))->method("updateAclPermission")->withConsecutive([$user, "foo", true])->will($this->onConsecutiveCalls(null, true, false, true));
         
         $acl = new SimpleAcl(SimpleAcl::BLACKLIST);
         $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->addPermission("moz")->endResource();
@@ -159,8 +159,12 @@ class SimpleAclTest extends TestCase
         $this->assertTrue($acl->isAllowed($user, $resource, "foo"));
         $this->assertFalse($acl->isAllowed($user, $resource, "foo"));
         $this->assertTrue($acl->isAllowed($user, $resource, "foo"));
-        $this->assertFalse($acl->isAllowed($user, $resource, "foo", function(UserInterface $user, AclBindableInterface $resource): ?bool {
+        $this->assertFalse($acl->isAllowed($user, $resource, "foo", function(UserInterface $user, AclBindableInterface $bindable) use ($resource): ?bool {
+            $this->assertSame($bindable, $resource);
             return true;
+        }));
+        $this->assertFalse($acl->isAllowed($user, $resource, "foo", function(UserInterface $user, AclBindableInterface $resource): ?bool {
+            return null;
         }));
     }
     
@@ -170,26 +174,25 @@ class SimpleAclTest extends TestCase
     public function testIsAllowedWithAclBindableActingOnResourceWhitelist(): void
     {
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
-        $user->expects($this->exactly(4))->method("getAttribute")->with(SimpleAcl::ACL_USER_ATTRIBUTE)->will($this->returnValue(["FooResource" => 0]));
+        $user->expects($this->exactly(5))->method("getAttribute")->with(SimpleAcl::ACL_USER_ATTRIBUTE)->will($this->returnValue(["FooResource" => 0]));
         
         $resource = $this->getMockBuilder(AclBindableInterface::class)->getMock();
-        $resource->expects($this->exactly(4))->method("getAclResourceName")->will($this->returnValue("FooResource"));
-        $resource->expects($this->exactly(3))->method("updateAclPermission")->withConsecutive([$user, "foo", false])->will($this->onConsecutiveCalls(null, true, false));
+        $resource->expects($this->exactly(5))->method("getAclResourceName")->will($this->returnValue("FooResource"));
+        $resource->expects($this->exactly(4))->method("updateAclPermission")->withConsecutive([$user, "foo", false])->will($this->onConsecutiveCalls(null, true, false, true));
         
         $acl = new SimpleAcl();
         $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->addPermission("moz")->endResource();
-        
-        $ref = null;
-        
+
         $this->assertFalse($acl->isAllowed($user, $resource, "foo"));
         $this->assertTrue($acl->isAllowed($user, $resource, "foo"));
         $this->assertFalse($acl->isAllowed($user, $resource, "foo"));
-        $this->assertTrue($acl->isAllowed($user, $resource, "foo", function(UserInterface $user, AclBindableInterface $resource) use (&$ref): ?bool {
-            $ref = $resource;
+        $this->assertTrue($acl->isAllowed($user, $resource, "foo", function(UserInterface $user, AclBindableInterface $bindable) use ($resource): ?bool {
+            $this->assertSame($resource, $bindable);
             return true;
         }));
-        
-        $this->assertSame($resource, $ref);
+        $this->assertTrue($acl->isAllowed($user, $resource, "foo", function(UserInterface $user, AclBindableInterface $resource): ?bool {
+            return null;  
+        }));
     }
     
     /**
