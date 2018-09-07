@@ -17,6 +17,10 @@ use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Traits\FileLoaderTrait;
 use Ness\Component\Acl\Exception\EntryNotFoundException;
 use Ness\Component\Acl\Resource\Entry;
+use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderAwareInterface;
+use Ness\Component\Acl\Traits\ResourceLoaderAwareTrait;
+use Ness\Component\Acl\Resource\ExtendableResourceInterface;
+use Ness\Component\Acl\Resource\Loader\Entry\Traits\InheritanceEntryLoaderTrait;
 
 /**
  * Load a set of entries from a set of files.
@@ -26,10 +30,12 @@ use Ness\Component\Acl\Resource\Entry;
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-class PhpFileEntryLoader implements EntryLoaderInterface
+class PhpFileEntryLoader implements EntryLoaderInterface, ResourceLoaderAwareInterface
 {
     
     use FileLoaderTrait;
+    use ResourceLoaderAwareTrait;
+    use InheritanceEntryLoaderTrait;
     
     /**
      * File setting loadables entries
@@ -39,7 +45,7 @@ class PhpFileEntryLoader implements EntryLoaderInterface
     private $files;
     
     /**
-     * Builded stat of the loader
+     * Builded status of the loader
      * 
      * @var bool
      */
@@ -93,8 +99,17 @@ class PhpFileEntryLoader implements EntryLoaderInterface
                 $instance = new Entry($index);
                 foreach ($current as $permission) {
                     if($this->isInheritable($permission)) {
-                        foreach ($this->load($resource, $permission, $processor) as $permission)
-                            $instance->addPermission($permission);                            
+                        try {
+                            if($permission === $entry)
+                                throw new EntryNotFoundException($permission);
+                            foreach ($this->load($resource, $permission, $processor) as $permission)
+                                $instance->addPermission($permission);                                                        
+                        } catch (EntryNotFoundException $e) {
+                            if(!$resource instanceof ExtendableResourceInterface) {
+                                break 2;
+                            }
+                            $this->loadParentEntry($resource, $instance, $permission, $processor);
+                        }
                     } else
                         $instance->addPermission($permission);                
                 }
@@ -103,7 +118,7 @@ class PhpFileEntryLoader implements EntryLoaderInterface
             }
         }
         
-        throw new EntryNotFoundException($entry, "This entry '{$entry}' cannot be found for resource '{$resource->getName()}'");
+        throw new EntryNotFoundException($entry, "This entry '{$entry}' cannot be loaded for resource '{$resource->getName()}'. It may be invalid or not registered");
     }
     
     /**
@@ -124,6 +139,15 @@ class PhpFileEntryLoader implements EntryLoaderInterface
     }
     
     /**
+     * {@inheritdoc}
+     * @see \Ness\Component\Acl\Resource\Loader\Entry\Traits\InheritanceEntryLoaderTrait::setPermissionIntoEntry()
+     */
+    protected function setPermissionIntoEntry(EntryInterface $entry, string $permission): void
+    {
+        $entry->addPermission($permission);
+    }
+    
+    /**
      * Check if the entry has an inheritable permission.
      * If given entry is inheritable, surrounding characters marking the inheritable state will be removed 
      * 
@@ -133,9 +157,9 @@ class PhpFileEntryLoader implements EntryLoaderInterface
      * @return bool
      *   True if the permission refer to an entry. False otherwise
      */
-    private function isInheritable(string& $entry): bool
+    protected function isInheritable(string& $entry): bool
     {
-        if($entry[0] === '{' && false !== \mb_strpos($entry, '}', -1)) {
+        if($entry[0] === '{' && false !== \strpos($entry, '}', -1)) {
             $entry = \mb_substr($entry, 1, -1);
             
             return true;

@@ -10,11 +10,10 @@ declare(strict_types = 1);
  *
  */
 
-// Fixture only
+// Fixtures only
 
 return [
-    
-    "FooEntry"  =>  ["{BarEntry}"],
-    "MozEntry"  =>  ["{MozEntry}"]
-    
+    "FooEntry"  =>  ["fooz"],
+    "BarEntry"  =>  ["barz"],
+    "MozEntry"  =>  ["mozz"]
 ];

@@ -16,6 +16,9 @@ use NessTest\Component\Acl\AclTestCase;
 use Ness\Component\Acl\Resource\Loader\Entry\PhpFileEntryLoader;
 use Ness\Component\Acl\Exception\EntryNotFoundException;
 use Ness\Component\Acl\Resource\ResourceInterface;
+use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderInterface;
+use Ness\Component\Acl\Resource\Resource;
+use Ness\Component\Acl\Resource\ExtendableResource;
 
 /**
  * PhpFileEntryLoader testcase
@@ -35,6 +38,9 @@ class PhpFileEntryLoaderTest extends AclTestCase
      */
     private const FIXTURES_DIRECTORY = __DIR__."/../../../Fixtures/Entry/Loader/PhpFileResourceLoaderFixtures";
     
+    /**
+     * @see \Ness\Component\Acl\Resource\Loader\Entry\PhpFileEntryLoader::load()
+     */
     public function testLoad(): void
     {
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
@@ -89,6 +95,41 @@ class PhpFileEntryLoaderTest extends AclTestCase
         $this->assertSame(["foo", "bar", "moz", "poz", "kek"], $inheriteEntry->getPermissions());
     }
     
+    /**
+     * @see \Ness\Component\Acl\Resource\Loader\Entry\PhpFileEntryLoader::load()
+     */
+    public function testLoadWithEntryInheritanceFromParentResource(): void
+    {
+        $fooResource = new Resource("FooResource");
+        $barResource = new ExtendableResource("BarResource", $fooResource);
+        $mozResource = new ExtendableResource("MozResource", $barResource);
+        
+        $resourceLoader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
+        $resourceLoader
+            ->expects($this->exactly(6))
+            ->method("load")
+            ->withConsecutive(["BarResource"], ["FooResource"], ["BarResource"], ["FooResource"], ["BarResource"], ["FooResource"])
+            ->will($this->onConsecutiveCalls($barResource, $fooResource, $barResource, $fooResource, $barResource, $fooResource));
+        
+        $loader = new PhpFileEntryLoader([self::FIXTURES_DIRECTORY."/valid/Inheritance"]);
+        $loader->setLoader($resourceLoader);
+        
+        $entry = $loader->load($mozResource, "FooEntry");
+        
+        $this->assertSame("FooEntry", $entry->getName());
+        $this->assertSame(["foo", "foo2", "foo3"], $entry->getPermissions());
+        
+        $entry = $loader->load($mozResource, "FooEntry", "FooProcessor");
+        
+        $this->assertSame("FooEntry", $entry->getName());
+        $this->assertSame(["fooz", "fooz2", "fooz3"], $entry->getPermissions());
+        
+        $entry = $loader->load($mozResource, "BarEntry");
+        
+        $this->assertSame("BarEntry", $entry->getName());
+        $this->assertSame(["bar", "bar2"], $entry->getPermissions());
+    }
+    
                     /**_____EXCEPTIONS_____**/
     
     /**
@@ -126,7 +167,7 @@ class PhpFileEntryLoaderTest extends AclTestCase
     public function testExceptionLoadWhenAnEntryCannotBeLoaded(): void
     {
         $this->expectException(EntryNotFoundException::class);
-        $this->expectExceptionMessage("This entry 'BarEntry' cannot be found for resource 'NOT_FOUND'");
+        $this->expectExceptionMessage("This entry 'BarEntry' cannot be loaded for resource 'NOT_FOUND'. It may be invalid or not registered");
         
         $file = self::FIXTURES_DIRECTORY."/invalid/NOT_FOUND_ENTRIES.php";
         
@@ -162,13 +203,58 @@ class PhpFileEntryLoaderTest extends AclTestCase
         $file = self::FIXTURES_DIRECTORY."/invalid/FAIL_INHERITANCE_ENTRIES.php";
         
         $this->expectException(EntryNotFoundException::class);
-        $this->expectExceptionMessage("This entry 'BarEntry' cannot be found for resource 'FAIL_INHERITANCE'");
+        $this->expectExceptionMessage("This entry 'FooEntry' cannot be loaded for resource 'FAIL_INHERITANCE'. It may be invalid or not registered");
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
-        $resource->expects($this->exactly(3))->method("getName")->will($this->returnValue("FAIL_INHERITANCE"));
+        $resource->expects($this->exactly(4))->method("getName")->will($this->returnValue("FAIL_INHERITANCE"));
         
         $loader = new PhpFileEntryLoader([$file]);
         $loader->load($resource, "FooEntry");
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\Resource\Loader\Entry\PhpFileEntryLoader::load()
+     */
+    public function testExceptionLoadWhenAnInvalidInheritanceEntryWithTheSameParentEntryNameAndResourceIsNotExtendable(): void
+    {
+        $file = self::FIXTURES_DIRECTORY."/invalid/FAIL_INHERITANCE_ENTRIES.php";
+        
+        $this->expectException(EntryNotFoundException::class);
+        $this->expectExceptionMessage("This entry 'MozEntry' cannot be loaded for resource 'FAIL_INHERITANCE'. It may be invalid or not registered");
+        
+        $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
+        $resource->expects($this->exactly(2))->method("getName")->will($this->returnValue("FAIL_INHERITANCE"));
+        
+        $loader = new PhpFileEntryLoader([$file]);
+        $loader->load($resource, "MozEntry");
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\Resource\Loader\Entry\PhpFileEntryLoader::load()
+     */
+    public function testExceptionLoadWhenAnInvalidInheritanceEntryAsPermissionCannotBeLoaded(): void
+    {
+        $this->expectException(EntryNotFoundException::class);
+        $this->expectExceptionMessage("This parent entry 'BarEntry' for loading entry 'FooEntry' cannot be loaded into resource 'BarResource' not into its parents");
+        
+        $file = self::FIXTURES_DIRECTORY."/invalid/Inheritance";
+        
+        $fooResource = new Resource("FooResource");
+        $barResource = new ExtendableResource("BarResource", $fooResource);
+        
+        $resourceLoader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
+        $resourceLoader
+            ->expects($this->once())
+            ->method("load")
+            ->with("FooResource")
+            ->will($this->returnValue($fooResource));
+        
+        $loader = new PhpFileEntryLoader([$file]);
+        $loader->setLoader($resourceLoader);
+        
+        $entry = $loader->load($barResource, "FooEntry");
+        
+        \var_dump($entry);
     }
     
 }

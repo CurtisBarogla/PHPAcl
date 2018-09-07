@@ -14,7 +14,6 @@ declare(strict_types = 1);
 
 return [
     
-    "FooEntry"  =>  ["{BarEntry}"],
-    "MozEntry"  =>  ["{MozEntry}"]
+    "FooEntry"  =>  ["foo"]
     
 ];
