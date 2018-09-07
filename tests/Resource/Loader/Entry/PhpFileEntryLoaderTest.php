@@ -253,8 +253,6 @@ class PhpFileEntryLoaderTest extends AclTestCase
         $loader->setLoader($resourceLoader);
         
         $entry = $loader->load($barResource, "FooEntry");
-        
-        \var_dump($entry);
     }
     
 }
