@@ -47,7 +47,9 @@ trait FileLoaderTrait
                     $this->files[$file->getBasename(".{$this->getExtension()}")] = $file->getPathname();
                 }
             } else {
-                $this->files[(new \SplFileInfo($file))->getBasename(".{$this->getExtension()}")] = $file;
+                $file = new \SplFileInfo($file);
+                if($file->getExtension() !== $this->getExtension()) continue;
+                $this->files[$file->getBasename(".{$this->getExtension()}")] = $file->getPathname();
             }
             
             unset($this->files[$index]);
