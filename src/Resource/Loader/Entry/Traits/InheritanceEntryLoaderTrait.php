@@ -17,6 +17,8 @@ use Ness\Component\Acl\Resource\ExtendableResource;
 use Ness\Component\Acl\Resource\ExtendableResourceInterface;
 use Ness\Component\Acl\Resource\EntryInterface;
 use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderAwareInterface;
+use Ness\Component\Acl\Resource\Entry;
+use Ness\Component\Acl\Resource\Loader\Entry\EntryLoaderInterface;
 
 /**
  * Proceed a look up over parents resources for loading a parent entry
@@ -32,43 +34,45 @@ trait InheritanceEntryLoaderTrait
     * 
     * @param ExtendableResourceInterface $resource
     *   Extendable resource
-    * @param EntryInterface $entry
-    *   Current entry to load the permissions
-    * @param string $parent
-    *   Parent entry identifier
+    * @param string $name
+    *   Entry name to load
     * @param string|null $processor
     *   Processor identifier
+    * @param EntryLoaderInterface|null $loader
+    *   A specific entry loader to use to load an entry
     *   
     * @throws \LogicException
     *   If loader is not an instance of ResourceLoaderAwareInterface
     */
-   protected function loadParentEntry(ExtendableResourceInterface $resource, EntryInterface $entry, string $parent, ?string $processor): void
+   protected function loadParentEntry(
+       ExtendableResourceInterface $resource, 
+       string $name, 
+       ?string $processor,
+       ?EntryLoaderInterface $loader = null): EntryInterface
    {
-        if(!$this instanceof ResourceLoaderAwareInterface)
+        $loader = $loader ?? $this;
+        if(!$loader instanceof ResourceLoaderAwareInterface)
             throw new \LogicException("Resource loader MUST be an instance of ResourceLoaderAwareInterface to be able to load a parent entry from a parent resource");               
 
+        $entry = new Entry($name);
+        $visited = [];
         foreach (ExtendableResource::generateParents($resource, $this->getLoader()) as $parentResource) {
             try {
-                foreach ($this->load($parentResource, $parent, $processor) as $permission) {
-                    $this->setPermissionIntoEntry($entry, $permission);
+                foreach ($loader->load($parentResource, $name, $processor) as $permission) {
+                    $entry->addPermission($permission);
                 }
-                return;
+                
+                return $entry;
             } catch (EntryNotFoundException $e) {
+                $visited[] = $parentResource->getName();
                 continue;
             }
         }
         
-        throw new EntryNotFoundException($parent, "This parent entry '{$parent}' for loading entry '{$entry->getName()}' cannot be loaded into resource '{$resource->getName()}' not into its parents");
+        throw new EntryNotFoundException($name, \sprintf("This entry '%s' cannot be loaded into resource '%s' nor into its parents '%s'",
+            $name,
+            $resource->getName(),
+            \implode(', ', $visited)));
    }
-   
-   /**
-    * Set the procedure to apply to set a permission into an entry
-    * 
-    * @param EntryInterface $entry
-    *   Entry which the permission is added
-    * @param string $permission
-    *   Permission to set
-    */
-   abstract protected function setPermissionIntoEntry(EntryInterface $entry, string $permission): void;
     
 }

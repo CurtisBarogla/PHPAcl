@@ -108,7 +108,8 @@ class PhpFileEntryLoader implements EntryLoaderInterface, ResourceLoaderAwareInt
                             if(!$resource instanceof ExtendableResourceInterface) {
                                 break 2;
                             }
-                            $this->loadParentEntry($resource, $instance, $permission, $processor);
+                            foreach ($this->loadParentEntry($resource, $permission, $processor) as $permission)
+                                $instance->addPermission($permission);
                         }
                     } else
                         $instance->addPermission($permission);                
@@ -136,15 +137,6 @@ class PhpFileEntryLoader implements EntryLoaderInterface, ResourceLoaderAwareInt
     protected function getFilePatternName(ResourceInterface $resource, ?string $processor = null): string
     {
         return (null === $processor) ? "{$resource->getName()}_ENTRIES" : "{$resource->getName()}_{$processor}_ENTRIES";
-    }
-    
-    /**
-     * {@inheritdoc}
-     * @see \Ness\Component\Acl\Resource\Loader\Entry\Traits\InheritanceEntryLoaderTrait::setPermissionIntoEntry()
-     */
-    protected function setPermissionIntoEntry(EntryInterface $entry, string $permission): void
-    {
-        $entry->addPermission($permission);
     }
     
     /**

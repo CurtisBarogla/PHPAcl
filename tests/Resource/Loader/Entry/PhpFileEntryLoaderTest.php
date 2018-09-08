@@ -235,7 +235,7 @@ class PhpFileEntryLoaderTest extends AclTestCase
     public function testExceptionLoadWhenAnInvalidInheritanceEntryAsPermissionCannotBeLoaded(): void
     {
         $this->expectException(EntryNotFoundException::class);
-        $this->expectExceptionMessage("This parent entry 'BarEntry' for loading entry 'FooEntry' cannot be loaded into resource 'BarResource' not into its parents");
+        $this->expectExceptionMessage("This entry 'BarEntry' cannot be loaded into resource 'BarResource' nor into its parents 'FooResource'");
         
         $file = self::FIXTURES_DIRECTORY."/invalid/Inheritance";
         

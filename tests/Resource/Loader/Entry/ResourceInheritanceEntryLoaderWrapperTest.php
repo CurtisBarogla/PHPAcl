@@ -20,6 +20,7 @@ use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\EntryNotFoundException;
 use Ness\Component\Acl\Resource\ExtendableResourceInterface;
 use Ness\Component\Acl\Resource\EntryInterface;
+use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderAwareInterface;
 
 /**
  * ResourceInheritanceEntryLoaderWrapper testcase
@@ -47,9 +48,9 @@ class ResourceInheritanceEntryLoaderWrapperTest extends AclTestCase
         
         $wrapped = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();
         $wrapped
-        ->expects($this->once())
-        ->method("load")->with($resource, "FooEntry", "FooProcessor")
-        ->will($this->onConsecutiveCalls($this->returnValue($entry)));
+            ->expects($this->once())
+            ->method("load")->with($resource, "FooEntry", "FooProcessor")
+            ->will($this->onConsecutiveCalls($this->returnValue($entry)));
         
         $loader = new ResourceInheritanceEntryLoaderWrapper($wrapped);
         $loader->setLoader($resourceLoader);
@@ -63,6 +64,7 @@ class ResourceInheritanceEntryLoaderWrapperTest extends AclTestCase
     public function testLoadWhenLoadIntoParent(): void
     {
         $entry = $this->getMockBuilder(EntryInterface::class)->getMock();
+        $entry->expects($this->once())->method("getIterator")->will($this->returnValue(new \ArrayIterator(["foo", "bar"])));
         
         $resource = $this->getMockBuilder(ExtendableResourceInterface::class)->getMock();
         $resource->expects($this->exactly(2))->method("getParent")->will($this->returnValue("FooResource"));
@@ -75,16 +77,18 @@ class ResourceInheritanceEntryLoaderWrapperTest extends AclTestCase
         $resourceLoader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
         $resourceLoader->expects($this->once())->method("load")->withConsecutive(["FooResource"])->will($this->onConsecutiveCalls($parentResource));
         
-        $wrapped = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();
+        $wrapped = $this->getMockBuilder([EntryLoaderInterface::class, ResourceLoaderAwareInterface::class])->getMock();
         $wrapped
-        ->expects($this->exactly(2))
-        ->method("load")->withConsecutive([$resource, "FooEntry", "FooProcessor"], [$parentResource, "FooEntry", "FooProcessor"])
-        ->will($this->onConsecutiveCalls($this->throwException(new EntryNotFoundException("FooEntry")), $this->returnValue($entry)));
+            ->expects($this->exactly(2))
+            ->method("load")->withConsecutive([$resource, "FooEntry", "FooProcessor"], [$parentResource, "FooEntry", "FooProcessor"])
+            ->will($this->onConsecutiveCalls($this->throwException(new EntryNotFoundException("FooEntry")), $this->returnValue($entry)));
         
         $loader = new ResourceInheritanceEntryLoaderWrapper($wrapped);
         $loader->setLoader($resourceLoader);
         
-        $this->assertSame($entry, $loader->load($resource, "FooEntry", "FooProcessor"));
+        $entry = $loader->load($resource, "FooEntry", "FooProcessor");
+        $this->assertSame("FooEntry", $entry->getName());
+        $this->assertSame(["foo", "bar"], $entry->getPermissions());
     }
     
     /**
@@ -141,15 +145,15 @@ class ResourceInheritanceEntryLoaderWrapperTest extends AclTestCase
     public function testExceptionLoadWhenParentsResourcesNotFoundEntry(): void
     {
         $this->expectException(EntryNotFoundException::class);
-        $this->expectExceptionMessage("This entry 'FooEntry' is not loadable for resource 'BarResource' nor into its parents 'FooResource, ParentFooResource'");
+        $this->expectExceptionMessage("This entry 'FooEntry' cannot be loaded into resource 'BarResource' nor into its parents 'FooResource, ParentFooResource'");
         
         $resource = $this->getMockBuilder(ExtendableResourceInterface::class)->getMock();
-        $resource->expects($this->exactly(2))->method("getParent")->will($this->returnValue("FooResource"));
-        $resource->expects($this->once())->method("getName")->will($this->returnValue("BarResource"));
+        $resource->expects($this->any())->method("getParent")->will($this->returnValue("FooResource"));
+        $resource->expects($this->any())->method("getName")->will($this->returnValue("BarResource"));
         
         $parentResource = $this->getMockBuilder(ExtendableResourceInterface::class)->getMock();
-        $parentResource->expects($this->once())->method("getParent")->will($this->returnValue("ParentFooResource"));
-        $parentResource->expects($this->once())->method("getName")->will($this->returnValue("FooResource"));
+        $parentResource->expects($this->any())->method("getParent")->will($this->returnValue("ParentFooResource"));
+        $parentResource->expects($this->any())->method("getName")->will($this->returnValue("FooResource"));
         
         $parentParentResource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $parentParentResource->expects($this->once())->method("getName")->will($this->returnValue("ParentFooResource"));
@@ -159,7 +163,7 @@ class ResourceInheritanceEntryLoaderWrapperTest extends AclTestCase
         
         $exception = new EntryNotFoundException("FooEntry");
         
-        $wrapped = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();
+        $wrapped = $this->getMockBuilder([EntryLoaderInterface::class, ResourceLoaderAwareInterface::class])->getMock();
         $wrapped
             ->expects($this->exactly(3))
             ->method("load")->withConsecutive([$resource, "FooEntry", "FooProcessor"], [$parentResource, "FooEntry", "FooProcessor"], [$parentParentResource, "FooEntry", "FooProcessor"])

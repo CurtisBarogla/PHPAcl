@@ -17,9 +17,9 @@ use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderAwareInterface;
 use Ness\Component\Acl\Traits\ResourceLoaderAwareTrait;
 use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderInterface;
-use Ness\Component\Acl\Resource\ExtendableResource;
 use Ness\Component\Acl\Resource\ExtendableResourceInterface;
 use Ness\Component\Acl\Exception\EntryNotFoundException;
+use Ness\Component\Acl\Resource\Loader\Entry\Traits\InheritanceEntryLoaderTrait;
 
 /**
  * Try to load an entry from a resource and its parents if possible
@@ -31,6 +31,7 @@ class ResourceInheritanceEntryLoaderWrapper implements EntryLoaderInterface, Res
 {
     
     use ResourceLoaderAwareTrait;
+    use InheritanceEntryLoaderTrait;
     
     /**
      * Resource loader
@@ -63,27 +64,15 @@ class ResourceInheritanceEntryLoaderWrapper implements EntryLoaderInterface, Res
      */
     public function load(ResourceInterface $resource, string $entry, ?string $processor = null): EntryInterface
     {
-        if(!$resource instanceof ExtendableResourceInterface) {
+        if(!$resource instanceof ExtendableResourceInterface)
             return $this->wrapped->load($resource, $entry, $processor);
-        }
-        
+
         try {
             return $this->wrapped->load($resource, $entry, $processor);
         } catch (EntryNotFoundException $e) {
-            foreach (ExtendableResource::generateParents($resource, $this->getLoader()) as $parent) {
-                try {
-                    return $this->wrapped->load($parent, $e->getEntry(), $processor);
-                } catch (EntryNotFoundException $e) {
-                    $visited[] = $parent->getName();
-                    continue;
-                }
-            }
+            return $this->loadParentEntry($resource, $e->getEntry(), $processor, $this->wrapped);
         }
         
-        throw new EntryNotFoundException($entry, \sprintf("This entry '%s' is not loadable for resource '%s' nor into its parents '%s'",
-            $entry,
-            $resource->getName(),
-            \implode(", ", $visited)));
     }
 
 }

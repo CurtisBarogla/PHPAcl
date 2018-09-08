@@ -55,7 +55,7 @@ class UnsupportedInheritanceEntryLoader implements EntryLoaderInterface
     public function load(ResourceInterface $resource, string $entry, ?string $processor = null): EntryInterface
     {
         $entry = new Entry("Foo");
-        $this->loadParentEntry($this->resource, $entry, "FooEntry", $processor);
+        $this->loadParentEntry($this->resource, "FooEntry", $processor);
     }
 
     /**
