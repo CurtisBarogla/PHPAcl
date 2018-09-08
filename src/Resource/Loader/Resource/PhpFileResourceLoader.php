@@ -101,6 +101,15 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
     }
     
     /**
+     * {@inheritdoc}
+     * @see \Ness\Component\Acl\Traits\FileLoaderTrait::getExtension()
+     */
+    protected function getExtension(): string
+    {
+        return "php";
+    }
+    
+    /**
      * Parse a resource array
      * 
      * @param string $file

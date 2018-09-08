@@ -43,15 +43,23 @@ trait FileLoaderTrait
         foreach ($this->files as $index => $file) {
             if(\is_dir($file)) {
                 foreach (new \DirectoryIterator($file) as $file) {
-                    if($file->isDot() || $file->isDir()) continue;
-                    $this->files[$file->getBasename(".php")] = $file->getPathname();
+                    if($file->isDot() || $file->isDir() || $file->getExtension() !== $this->getExtension()) continue;
+                    $this->files[$file->getBasename(".{$this->getExtension()}")] = $file->getPathname();
                 }
             } else {
-                $this->files[(new \SplFileInfo($file))->getBasename(".php")] = $file;
+                $this->files[(new \SplFileInfo($file))->getBasename(".{$this->getExtension()}")] = $file;
             }
             
             unset($this->files[$index]);
         }
     }
+    
+    /**
+     * Declare extension file supported by the loader
+     * 
+     * @return string
+     *   File extension
+     */
+    abstract protected function getExtension(): string;
     
 }

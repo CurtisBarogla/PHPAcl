@@ -159,5 +159,14 @@ class PhpFileEntryLoader implements EntryLoaderInterface, ResourceLoaderAwareInt
         
         return false;
     }
+    
+    /**
+     * {@inheritdoc}
+     * @see \Ness\Component\Acl\Traits\FileLoaderTrait::getExtension()
+     */
+    protected function getExtension(): string
+    {
+        return "php";
+    }
 
 }
