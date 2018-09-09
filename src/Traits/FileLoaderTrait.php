@@ -43,13 +43,13 @@ trait FileLoaderTrait
         foreach ($this->files as $index => $file) {
             if(\is_dir($file)) {
                 foreach (new \DirectoryIterator($file) as $file) {
-                    if($file->isDot() || $file->isDir() || $file->getExtension() !== $this->getExtension()) continue;
-                    $this->files[$file->getBasename(".{$this->getExtension()}")] = $file->getPathname();
+                    if($file->isDot() || $file->isDir() || !$this->supports($file)) continue;
+                    $this->files[$file->getBasename(".{$file->getExtension()}")] = $file->getPathname();
                 }
             } else {
                 $file = new \SplFileInfo($file);
-                if($file->getExtension() !== $this->getExtension()) continue;
-                $this->files[$file->getBasename(".{$this->getExtension()}")] = $file->getPathname();
+                if(!$this->supports($file)) continue;
+                $this->files[$file->getBasename(".{$file->getExtension()}")] = $file->getPathname();
             }
             
             unset($this->files[$index]);
@@ -57,11 +57,14 @@ trait FileLoaderTrait
     }
     
     /**
-     * Declare extension file supported by the loader
+     * Check the the loader supports the given file
      * 
-     * @return string
-     *   File extension
+     * @param \SplFileInfo $file
+     *   File to check
+     * 
+     * @return bool
+     *   True if the file is supported by this loader. False otherwise
      */
-    abstract protected function getExtension(): string;
+    abstract protected function supports(\SplFileInfo $file): bool;
     
 }

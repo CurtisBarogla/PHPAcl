@@ -102,11 +102,11 @@ class PhpFileResourceLoader implements ResourceLoaderInterface
     
     /**
      * {@inheritdoc}
-     * @see \Ness\Component\Acl\Traits\FileLoaderTrait::getExtension()
+     * @see \Ness\Component\Acl\Traits\FileLoaderTrait::supports()
      */
-    protected function getExtension(): string
+    protected function supports(\SplFileInfo $file): bool
     {
-        return "php";
+        return $file->getExtension() === "php";
     }
     
     /**
