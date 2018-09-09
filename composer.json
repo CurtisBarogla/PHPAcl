@@ -39,6 +39,8 @@
 		"user",
 		"resource",
 		"permissions",
-		"permission"
+		"permission",
+		"attributes",
+		"roles"
 	]
 }

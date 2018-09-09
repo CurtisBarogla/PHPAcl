@@ -57,7 +57,7 @@ trait FileLoaderTrait
     }
     
     /**
-     * Check the the loader supports the given file
+     * Check if the loader supports the given file
      * 
      * @param \SplFileInfo $file
      *   File to check
