@@ -84,7 +84,7 @@ class CacheItemPoolWrapperResourceLoader implements ResourceLoaderInterface
             if($item instanceof TaggableCacheItemInterface)
                 $item->setTags([self::CACHE_TAG]);
             
-            $this->pool->save($item);
+            $this->pool->saveDeferred($item);
             
             return $resource;
         }
