@@ -59,9 +59,7 @@ class FallbackProcessorEntryLoaderWrapper implements EntryLoaderInterface
             try {
                 return $this->wrapped->load($resource, $entry, null);                                
             } catch (EntryNotFoundException $e) {
-                $exception = new EntryNotFoundException($entry, "This entry '{$entry}' cannot be loaded for resource '{$resource->getName()}' through processor '{$processor}' nor global (null) processor");
-                
-                throw $exception;
+                throw new EntryNotFoundException($entry, "This entry '{$entry}' cannot be loaded for resource '{$resource->getName()}' through processor '{$processor}' nor global (null) processor");
             }
         }
     }
