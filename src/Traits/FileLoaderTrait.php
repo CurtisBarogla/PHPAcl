@@ -43,13 +43,13 @@ trait FileLoaderTrait
         foreach ($this->files as $index => $file) {
             if(\is_dir($file)) {
                 foreach (new \DirectoryIterator($file) as $file) {
-                    if($file->isDot() || $file->isDir() || !$this->supports($file)) continue;
-                    $this->files[$file->getBasename(".{$file->getExtension()}")] = $file->getPathname();
+                    if(!$file->isDot() && !$file->isDir() && $this->supports($file))
+                        $this->files[$file->getBasename(".{$file->getExtension()}")] = $file->getPathname();
                 }
             } else {
                 $file = new \SplFileInfo($file);
-                if(!$this->supports($file)) continue;
-                $this->files[$file->getBasename(".{$file->getExtension()}")] = $file->getPathname();
+                if($this->supports($file))
+                    $this->files[$file->getBasename(".{$file->getExtension()}")] = $file->getPathname();
             }
             
             unset($this->files[$index]);
