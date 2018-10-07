@@ -101,10 +101,11 @@ class PhpFileEntryLoader implements EntryLoaderInterface, ResourceLoaderAwareInt
                     if($this->isInheritable($permission)) {
                         try {
                             if($permission === $entry)
-                                throw new EntryNotFoundException($permission);
+                                goto same;
                             foreach ($this->load($resource, $permission, $processor) as $permission)
                                 $instance->addPermission($permission);                                                        
                         } catch (EntryNotFoundException $e) {
+                            same:
                             if(!$resource instanceof ExtendableResourceInterface) {
                                 break 2;
                             }
