@@ -136,17 +136,6 @@ class Acl implements AclInterface
     }
     
     /**
-     * Get all identifiers of all registered acl processors
-     * 
-     * @return string[]
-     *   All identifiers
-     */
-    public function getProcessors(): array
-    {
-        return \array_keys($this->processors ?? []);
-    }
-    
-    /**
      * Determine which update must be applied
      * 
      * @param \Closure $update

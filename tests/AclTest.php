@@ -438,27 +438,7 @@ class AclTest extends AclTestCase
         $this->assertNull($acl->registerProcessor($processor));
     }
     
-    /**
-     * @see \Ness\Component\Acl\Acl::getProcessors()
-     */
-    public function testGetProcessors(): void
-    {
-        $acl = new Acl($this->getMockBuilder(ResourceLoaderInterface::class)->getMock(), $this->getMockBuilder(EntryLoaderInterface::class)->getMock());
-        
-        $this->assertSame([], $acl->getProcessors());
-        
-        $fooProcessor = $this->getMockBuilder(ResourceProcessorInterface::class)->getMock();
-        $fooProcessor->expects($this->once())->method("getIdentifier")->will($this->returnValue("FooProcessor"));
-        $barProcessor = $this->getMockBuilder(ResourceProcessorInterface::class)->getMock();
-        $barProcessor->expects($this->once())->method("getIdentifier")->will($this->returnValue("BarProcessor"));
-        
-        $acl->registerProcessor($fooProcessor);
-        $acl->registerProcessor($barProcessor);
-        
-        $this->assertSame(["FooProcessor", "BarProcessor"], $acl->getProcessors());
-    }
-    
-    /**____EXCEPTIONS____**/
+                    /**____EXCEPTIONS____**/
     
     /**
      * @see \Ness\Component\Acl\Acl::isAllowed()
