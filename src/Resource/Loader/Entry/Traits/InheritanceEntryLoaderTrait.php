@@ -41,8 +41,8 @@ trait InheritanceEntryLoaderTrait
     * @param EntryLoaderInterface|null $loader
     *   A specific entry loader to use to load an entry
     *   
-    * @throws \LogicException
-    *   If loader is not an instance of ResourceLoaderAwareInterface
+    * @throws EntryNotFoundException
+    *   When entry not found or the current loader is not a valid one
     */
    protected function loadParentEntry(
        ExtendableResourceInterface $resource, 
@@ -52,7 +52,7 @@ trait InheritanceEntryLoaderTrait
    {
         $loader = $loader ?? $this;
         if(!$loader instanceof ResourceLoaderAwareInterface)
-            throw new \LogicException("Resource loader MUST be an instance of ResourceLoaderAwareInterface to be able to load a parent entry from a parent resource");               
+            throw new EntryNotFoundException("Resource loader MUST be an instance of ResourceLoaderAwareInterface to be able to load a parent entry from a parent resource");               
 
         $entry = new Entry($name);
         $visited = [];
