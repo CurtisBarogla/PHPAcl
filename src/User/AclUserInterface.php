@@ -30,7 +30,7 @@ interface AclUserInterface extends UserInterface
      * 
      * @var string
      */
-    public const ACL_ATTRIBUTE_IDENTIFIER = "ACL_RESOURCE";
+    public const ACL_ATTRIBUTE_IDENTIFIER = "NESS_ACL_RESOURCE";
     
     /**
      * Get permission accorded to the user for a resource
