@@ -17,6 +17,7 @@ use Ness\Component\Acl\User\AclUser;
 use Ness\Component\User\UserInterface;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
+use Ness\Component\Acl\Normalizer\LockPatternNormalizerInterface;
 
 /**
  * AclUser testcase
@@ -49,7 +50,7 @@ class AclUserTest extends AclTestCase
         $user->expects($this->once())->method("getRoles")->will($this->returnValue(["foo", "bar"]));
         $user->expects($this->once())->method("hasRole")->with("foo")->will($this->returnValue(true));
 
-        $user = new AclUser($user);
+        $user = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $this->assertSame("Foo", $user->getName());
         $this->assertInstanceOf(UserInterface::class, $user->addAttribute("foo", "bar"));
@@ -65,20 +66,25 @@ class AclUserTest extends AclTestCase
      */
     public function testGetPermission(): void
     {
+        $normalizer = $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock();
+        $normalizer
+            ->expects($this->exactly(3))
+            ->method("apply")
+            ->will($this->onConsecutiveCalls("::BarResource::", "::MozResource::", "::KekResource::"));
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user
             ->expects($this
             ->exactly(4))
             ->method("getAttribute")
             ->withConsecutive([AclUser::ACL_ATTRIBUTE_IDENTIFIER])
-            ->will($this->onConsecutiveCalls(null, ["BarResource" => 42], ["MozResource" => 24], ["<KekResource>" => 42]));
+            ->will($this->onConsecutiveCalls(null, ["BarResource" => 42], ["MozResource" => 24], ["::KekResource::" => 42]));
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource
             ->expects($this->exactly(5))
             ->method("getName")
             ->will($this->onConsecutiveCalls("FooResource", "BarResource", "BarResource", "PozResource", "KekResource"));
             
-        $user = new AclUser($user);
+        $user = new AclUser($user, $normalizer);
         
         $this->assertNull($user->getPermission($resource));
         $this->assertSame(42, $user->getPermission($resource));
@@ -109,7 +115,7 @@ class AclUserTest extends AclTestCase
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->exactly(3))->method("getName")->will($this->returnValue("FooResource"));
         
-        $user = new AclUser($user);
+        $user = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $this->assertNull($user->setPermission($resource, 24));
         $this->assertNull($user->setPermission($resource, 24));
@@ -123,7 +129,7 @@ class AclUserTest extends AclTestCase
     {
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         
-        $user = new AclUser($user);
+        $user = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $this->assertSame($user, $user->grant("foo"));
         $this->assertSame($user, $user->grant(["foo", "bar"]));
@@ -136,7 +142,7 @@ class AclUserTest extends AclTestCase
     {
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         
-        $user = new AclUser($user);
+        $user = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $this->assertSame($user, $user->grantRoot());
     }
@@ -148,7 +154,7 @@ class AclUserTest extends AclTestCase
     {
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         
-        $user = new AclUser($user);
+        $user = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $this->assertSame($user, $user->deny("foo"));
         $this->assertSame($user, $user->deny(["foo", "bar"]));
@@ -162,7 +168,7 @@ class AclUserTest extends AclTestCase
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user->expects($this->once())->method("getAttribute")->will($this->returnValue(null));
         
-        $user = new AclUser($user);
+        $user = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->once())->method("grantRoot");
@@ -184,7 +190,7 @@ class AclUserTest extends AclTestCase
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->once())->method("getName")->will($this->returnValue("FooResource"));
         
-        $user = new AclUser($user);
+        $user = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $this->assertNull($user->on($resource));
     }
@@ -194,8 +200,10 @@ class AclUserTest extends AclTestCase
      */
     public function testOnWhenLocked(): void
     {
+        $normalizer = $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock();
+        $normalizer->expects($this->once())->method("apply")->with("FooResource")->will($this->returnValue("::FooResource::"));
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
-        $user->expects($this->once())->method("getAttribute")->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER)->will($this->returnValue(["<FooResource>" => 42]));
+        $user->expects($this->once())->method("getAttribute")->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER)->will($this->returnValue(["::FooResource::" => 42]));
             
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->exactly(2))->method("getName")->will($this->returnValue("FooResource"));
@@ -203,7 +211,7 @@ class AclUserTest extends AclTestCase
         $resource->expects($this->never())->method("deny");
         $resource->expects($this->never())->method("grantRoot");
 
-        $user = new AclUser($user);
+        $user = new AclUser($user, $normalizer);
         
         $this->assertNull($user->grant("foo")->on($resource));
         $this->assertNull($user->grant("foo")->on($resource));
@@ -214,13 +222,15 @@ class AclUserTest extends AclTestCase
      */
     public function testLockWhenLocked(): void
     {
+        $normalizer = $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock();
+        $normalizer->expects($this->once())->method("apply")->with("FooResource")->will($this->returnValue("::FooResource::"));
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
-        $user->expects($this->once())->method("getAttribute")->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER)->will($this->returnValue(["<FooResource>" => 42]));
+        $user->expects($this->once())->method("getAttribute")->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER)->will($this->returnValue(["::FooResource::" => 42]));
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
-        $resource->expects($this->exactly(1))->method("getName")->will($this->returnValue("FooResource"));
+        $resource->expects($this->once())->method("getName")->will($this->returnValue("FooResource"));
         
-        $user = new AclUser($user);
+        $user = new AclUser($user, $normalizer);
         
         $this->assertNull($user->grant("foo")->lock($resource));
     }
@@ -230,18 +240,20 @@ class AclUserTest extends AclTestCase
      */
     public function testLockWithNoPreviousResource(): void
     {
+        $normalizer = $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock();
+        $normalizer->expects($this->once())->method("apply")->with("FooResource")->will($this->returnValue("::FooResource::"));
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user
             ->expects($this->exactly(3))
             ->method("getAttribute")
             ->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER)
             ->will($this->returnValue(null));
-        $user->expects($this->once())->method("addAttribute")->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER, ["<FooResource>" => 0]);
+        $user->expects($this->once())->method("addAttribute")->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER, ["::FooResource::" => 0]);
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->exactly(5))->method("getName")->will($this->returnValue("FooResource"));
         
-        $user = new AclUser($user);
+        $user = new AclUser($user, $normalizer);
         
         $this->assertNull($user->lock($resource));
     }
@@ -251,18 +263,20 @@ class AclUserTest extends AclTestCase
      */
     public function testLockWithPreviousResource(): void
     {
+        $normalizer = $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock();
+        $normalizer->expects($this->exactly(3))->method("apply")->with("FooResource")->will($this->returnValue("::FooResource::"));
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user
             ->expects($this->exactly(3))
             ->method("getAttribute")
             ->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER)
             ->will($this->returnValue(["BarResource" => 20, "FooResource" => 42], ["BarResource" => 20, "FooResource" => 42], ["BarResource" => 20, "FooResource" => 42]));
-        $user->expects($this->once())->method("addAttribute")->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER, ["BarResource" => 20, "<FooResource>" => 42]);
+        $user->expects($this->once())->method("addAttribute")->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER, ["BarResource" => 20, "::FooResource::" => 42]);
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->exactly(4))->method("getName")->will($this->returnValue("FooResource"));
         
-        $user = new AclUser($user);
+        $user = new AclUser($user, $normalizer);
         
         $this->assertNull($user->lock($resource));
     }
@@ -272,17 +286,24 @@ class AclUserTest extends AclTestCase
      */
     public function testIsLocked(): void
     {
+        $normalizer = $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock();
+        $normalizer
+            ->expects($this->exactly(2))
+            ->method("apply")
+            ->withConsecutive(["BarResource"], ["MozResource"])
+            ->will($this->onConsecutiveCalls("::BarResource::", "::MozResource::"));
+        
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user
             ->expects($this->exactly(3))
             ->method("getAttribute")
             ->withConsecutive([AclUser::ACL_ATTRIBUTE_IDENTIFIER])
-            ->will($this->onConsecutiveCalls(null, ["BarResource" => 42], ["<MozResource>" => 42]));
+            ->will($this->onConsecutiveCalls(null, ["BarResource" => 42], ["::MozResource::" => 42]));
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->once())->method("getName")->will($this->returnValue("FooResource"));
         
-        $user = new AclUser($user);
+        $user = new AclUser($user, $normalizer);
         
         $this->assertFalse($user->isLocked($resource));
         
@@ -304,7 +325,7 @@ class AclUserTest extends AclTestCase
     {
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         
-        $aclUser = new AclUser($user);
+        $aclUser = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $this->assertSame($user, $aclUser->getUser());
     }
@@ -321,7 +342,7 @@ class AclUserTest extends AclTestCase
         
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         
-        $user = new AclUser($user);
+        $user = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $user->grant(new \stdClass());
     }
@@ -336,7 +357,7 @@ class AclUserTest extends AclTestCase
         
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         
-        $user = new AclUser($user);
+        $user = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $user->deny(new \stdClass());
     }
@@ -355,7 +376,7 @@ class AclUserTest extends AclTestCase
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user->expects($this->once())->method("getAttribute")->with(AclUser::ACL_ATTRIBUTE_IDENTIFIER)->will($this->returnValue(null));
         $user->expects($this->once())->method("getName")->will($this->returnValue("FooUser"));
-        $user = new AclUser($user);
+        $user = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->once())->method("grant")->with("foo")->will($this->throwException($exception));

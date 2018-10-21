@@ -19,6 +19,7 @@ use Ness\Component\Acl\User\AclUser;
 use Ness\Component\Acl\Resource\Processor\RootUserResourceProcessor;
 use Ness\Component\Acl\Resource\Loader\Entry\EntryLoaderInterface;
 use Ness\Component\Authentication\User\AuthenticatedUserInterface;
+use Ness\Component\Acl\Normalizer\LockPatternNormalizerInterface;
 
 /**
  * RootUserResourceProcessor testcase
@@ -41,7 +42,7 @@ class RootUserResourceProcessorTest extends AclTestCase
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->never())->method("grantRoot");
-        $aclUser = new AclUser($user);
+        $aclUser = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $processor = new RootUserResourceProcessor();
         $processor->setUser($aclUser);
@@ -54,7 +55,7 @@ class RootUserResourceProcessorTest extends AclTestCase
             $user = $this->getMockBuilder(AuthenticatedUserInterface::class)->getMock();
             $user->expects($this->once())->method("isRoot")->will($this->returnValue(false));
             
-            $aclUser = new AclUser($user);
+            $aclUser = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
             
             $processor->setUser($aclUser);
             
@@ -66,7 +67,7 @@ class RootUserResourceProcessorTest extends AclTestCase
             $user->expects($this->once())->method("isRoot")->will($this->returnValue(true));
             $user->expects($this->once())->method("addAttribute");
             
-            $aclUser = new AclUser($user);
+            $aclUser = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
             
             $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
             $resource->expects($this->once())->method("grantRoot")->will($this->returnValue($resource));
@@ -92,7 +93,7 @@ class RootUserResourceProcessorTest extends AclTestCase
      */
     public function testSetUser(): void
     {
-        $aclUser = new AclUser($this->getMockBuilder(UserInterface::class)->getMock());
+        $aclUser = new AclUser($this->getMockBuilder(UserInterface::class)->getMock(), $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $processor = new RootUserResourceProcessor();
         
@@ -104,7 +105,7 @@ class RootUserResourceProcessorTest extends AclTestCase
      */
     public function testGetUser(): void
     {
-        $aclUser = new AclUser($this->getMockBuilder(UserInterface::class)->getMock());
+        $aclUser = new AclUser($this->getMockBuilder(UserInterface::class)->getMock(), $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $processor = new RootUserResourceProcessor();
         $processor->setUser($aclUser);

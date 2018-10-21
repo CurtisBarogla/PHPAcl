@@ -18,6 +18,7 @@ use Ness\Component\Acl\Exception\InvalidArgumentException;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
 use Ness\Component\Acl\Exception\EntryNotFoundException;
 use Psr\SimpleCache\CacheInterface;
+use Ness\Component\Acl\Normalizer\LockPatternNormalizerInterface;
 
 /**
  * A simple acl for those who does not like my other implementation
@@ -69,21 +70,28 @@ final class SimpleAcl implements AclInterface
      * 
      * @var array[]
      */
-    protected $acl;
+    private $acl;
     
     /**
      * Acl behaviour
      * 
      * @var int
      */
-    protected $behaviour;
+    private $behaviour;
+    
+    /**
+     * Lock pattern resource name normalizer
+     * 
+     * @var LockPatternNormalizerInterface
+     */
+    private $normalizer;
     
     /**
      * Acl processors
      * 
      * @var \Closure[]
      */
-    protected $processors = [];
+    private $processors = [];
     
     /**
      * Resource name index
@@ -174,14 +182,17 @@ final class SimpleAcl implements AclInterface
     /**
      * Initialize acl
      * 
+     * @param LockPatternNormalizerInterface $normalizer
+     *   Lock pattern resource name normalizer
      * @param int $behaviour
      *   Acl behaviour. By default WHITELIST
      * 
      * @throws InvalidArgumentException
      *   When given behaviour is invalid
      */
-    public function __construct(int $behaviour = self::WHITELIST)
+    public function __construct(LockPatternNormalizerInterface $normalizer, int $behaviour = self::WHITELIST)
     {
+        $this->normalizer = $normalizer;
         $this->assignBehaviour($behaviour);
     }
     
@@ -214,7 +225,7 @@ final class SimpleAcl implements AclInterface
                 
                 if($locked) {
                     unset($attribute[$resource[self::NAME_INDEX]]);
-                    $attribute["<{$resource[self::NAME_INDEX]}>"] = $mask;
+                    $attribute[$this->normalizer->apply($resource[self::NAME_INDEX])] = $mask;
                     $user->addAttribute(self::ACL_USER_ATTRIBUTE, $attribute);
                     
                     return (bool) ( ($mask & $required) === $required );
@@ -868,9 +879,9 @@ final class SimpleAcl implements AclInterface
             $user->addAttribute(self::ACL_USER_ATTRIBUTE, []);
             $attribute = [];
         }
-        
-        if( ($locked = isset($attribute["<{$resource[self::NAME_INDEX]}>"])) || isset($attribute[$resource[self::NAME_INDEX]])) {
-            $mask = $attribute["<{$resource[self::NAME_INDEX]}>"] ?? $attribute[$resource[self::NAME_INDEX]];
+        $normalized = $this->normalizer->apply($resource[self::NAME_INDEX]);
+        if( ($locked = isset($attribute[$normalized])) || isset($attribute[$resource[self::NAME_INDEX]])) {
+            $mask = $attribute[$normalized] ?? $attribute[$resource[self::NAME_INDEX]];
             $initialized = false;
             
             return;

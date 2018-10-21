@@ -21,6 +21,7 @@ use Ness\Component\User\UserInterface;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
 use Ness\Component\Acl\AclBindableInterface;
 use Psr\SimpleCache\CacheInterface;
+use Ness\Component\Acl\Normalizer\LockPatternNormalizerInterface;
 
 /**
  * SimpleAcl testcase
@@ -40,6 +41,19 @@ class SimpleAclTest extends TestCase
      */
     public function testIsAllowedWithUserWithLockedResource(): void
     {
+        $normalizer = $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock();
+        $normalizer
+            ->expects($this->exactly(5))
+            ->method("apply")
+            ->withConsecutive(
+                ["FooResource"],
+                ["FooResource"],
+                ["FooResource"],
+                ["BarResource"],
+                ["BarResource"]
+            )
+            ->will($this->onConsecutiveCalls("::FooResource::", "::FooResource::", "::FooResource::", "::BarResource::", "::BarResource::"));
+            
         $barResource = $this->getMockBuilder(AclBindableInterface::class)->getMock();
         $barResource->expects($this->exactly(2))->method("getAclResourceName")->will($this->returnValue("BarResource"));
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
@@ -47,9 +61,9 @@ class SimpleAclTest extends TestCase
             ->expects($this->exactly(5))
             ->method("getAttribute")
             ->with(SimpleAcl::ACL_USER_ATTRIBUTE)
-            ->will($this->returnValue(["<FooResource>" => 3, "<BarResource>" => 7]));
+            ->will($this->returnValue(["::FooResource::" => 3, "::BarResource::" => 7]));
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($normalizer);
         $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->addPermission("moz")->endResource();
         $acl->addResource("BarResource", "FooResource")->addPermission("loz")->endResource();
         
@@ -69,6 +83,12 @@ class SimpleAclTest extends TestCase
      */
     public function testIsAllowedWithUserWithNoAttribute(): void
     {
+        $normalizer = $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock();
+        $normalizer->expects($this
+            ->exactly(3))
+            ->method("apply")
+            ->withConsecutive(["FooResource"], ["BarResource"], ["MozResource"])
+            ->will($this->onConsecutiveCalls("::FooResource::", "::BarResource::", "::MozResource::"));
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user
             ->expects($this->exactly(3))
@@ -82,7 +102,7 @@ class SimpleAclTest extends TestCase
             [SimpleAcl::ACL_USER_ATTRIBUTE, ["FooResource" => 15, "BarResource" => 31, "MozResource" => 0]]
             );
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($normalizer);
         $acl->changeBehaviour(SimpleAcl::BLACKLIST);
         $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->addPermission("moz")->addPermission("poz")->endResource();
         $acl->addResource("BarResource", "FooResource")->addPermission("loz")->endResource();
@@ -99,6 +119,12 @@ class SimpleAclTest extends TestCase
      */
     public function testIsAllowedWithUserWithNoAttributeAndAProcessorLockingThePermission(): void
     {
+        $normalizer = $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock();
+        $normalizer->expects($this
+            ->exactly(6))
+            ->method("apply")
+            ->withConsecutive(["FooResource"], ["FooResource"], ["BarResource"], ["BarResource"], ["MozResource"], ["MozResource"])
+            ->will($this->onConsecutiveCalls("::FooResource::", "::FooResource::", "::BarResource::", "::BarResource::", "::MozResource::", "::MozResource::"));
         $barResource = $this->getMockBuilder(AclBindableInterface::class)->getMock();
         $barResource->expects($this->once())->method("getAclResourceName")->will($this->returnValue("BarResource"));
         $barResource->expects($this->never())->method("updateAclPermission");
@@ -108,15 +134,15 @@ class SimpleAclTest extends TestCase
             ->expects($this->exactly(3))
             ->method("getAttribute")
             ->withConsecutive([SimpleAcl::ACL_USER_ATTRIBUTE])
-            ->will($this->onConsecutiveCalls(null, ["<FooResource>" => 15], ["<FooResource>" => 15, "<BarResource>" => 15]));
+            ->will($this->onConsecutiveCalls(null, ["::FooResource::" => 15], ["::FooResource::" => 15, "::BarResource::" => 15]));
         $user
             ->expects($this->exactly(4))
             ->method("addAttribute")
             ->withConsecutive(
                 [SimpleAcl::ACL_USER_ATTRIBUTE, []],
-                [SimpleAcl::ACL_USER_ATTRIBUTE, ["<FooResource>"    => 15]],
-                [SimpleAcl::ACL_USER_ATTRIBUTE, ["<FooResource>"    => 15, "<BarResource>"    => 15]],
-                [SimpleAcl::ACL_USER_ATTRIBUTE, ["<FooResource>"    => 15, "<BarResource>"    => 15, "<MozResource>" => 2]]
+                [SimpleAcl::ACL_USER_ATTRIBUTE, ["::FooResource::"    => 15]],
+                [SimpleAcl::ACL_USER_ATTRIBUTE, ["::FooResource::"    => 15, "::BarResource::"    => 15]],
+                [SimpleAcl::ACL_USER_ATTRIBUTE, ["::FooResource::"    => 15, "::BarResource::"    => 15, "::MozResource::" => 2]]
             );
         
         $processor = function(UserInterface $user): void {
@@ -127,7 +153,7 @@ class SimpleAclTest extends TestCase
             $this->lock();
         };
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($normalizer);
         $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->addPermission("moz")->addPermission("poz")->endResource();
         $acl->addResource("BarResource", "FooResource")->endResource();
         $acl->changeBehaviour(SimpleAcl::BLACKLIST);
@@ -146,6 +172,8 @@ class SimpleAclTest extends TestCase
      */
     public function testIsAllowedWithAclBindableActingOnResourceBlacklist(): void
     {
+        $normalizer = $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock();
+        $normalizer->expects($this->exactly(5))->method("apply")->with("FooResource")->will($this->returnValue("::FooResource::"));
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user->expects($this->exactly(5))->method("getAttribute")->with(SimpleAcl::ACL_USER_ATTRIBUTE)->will($this->returnValue(["FooResource" => 7]));
         
@@ -153,7 +181,7 @@ class SimpleAclTest extends TestCase
         $resource->expects($this->exactly(5))->method("getAclResourceName")->will($this->returnValue("FooResource"));
         $resource->expects($this->exactly(4))->method("updateAclPermission")->withConsecutive([$user, "foo", true])->will($this->onConsecutiveCalls(null, true, false, true));
         
-        $acl = new SimpleAcl(SimpleAcl::BLACKLIST);
+        $acl = new SimpleAcl($normalizer, SimpleAcl::BLACKLIST);
         $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->addPermission("moz")->endResource();
         
         $this->assertTrue($acl->isAllowed($user, $resource, "foo"));
@@ -173,6 +201,8 @@ class SimpleAclTest extends TestCase
      */
     public function testIsAllowedWithAclBindableActingOnResourceWhitelist(): void
     {
+        $normalizer = $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock();
+        $normalizer->expects($this->exactly(5))->method("apply")->with("FooResource")->will($this->returnValue("::FooResource::"));
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user->expects($this->exactly(5))->method("getAttribute")->with(SimpleAcl::ACL_USER_ATTRIBUTE)->will($this->returnValue(["FooResource" => 0]));
         
@@ -180,7 +210,7 @@ class SimpleAclTest extends TestCase
         $resource->expects($this->exactly(5))->method("getAclResourceName")->will($this->returnValue("FooResource"));
         $resource->expects($this->exactly(4))->method("updateAclPermission")->withConsecutive([$user, "foo", false])->will($this->onConsecutiveCalls(null, true, false, true));
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($normalizer);
         $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->addPermission("moz")->endResource();
 
         $this->assertFalse($acl->isAllowed($user, $resource, "foo"));
@@ -203,7 +233,7 @@ class SimpleAclTest extends TestCase
     {
         $ref = null;
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl
         ->addResource("FooResource")
             ->addPermission("foo")
@@ -252,7 +282,7 @@ class SimpleAclTest extends TestCase
         
         $cache = $this->getMockBuilder(CacheInterface::class)->getMock();
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->wrapProcessor("FooProcessor")->addEntry("FooEntry", ["foo", "bar"])->endProcessor()->addEntry("FooEntry", ["foo"])->endResource();
         $acl->addResource("BarResource", "FooResource")->endResource();
         $acl->changeBehaviour(SimpleAcl::BLACKLIST);
@@ -275,7 +305,7 @@ class SimpleAclTest extends TestCase
         
         $cache = $this->getMockBuilder(CacheInterface::class)->getMock();
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->wrapProcessor("FooProcessor")->addEntry("FooEntry", ["foo", "bar"])->endProcessor()->addEntry("FooEntry", ["foo"])->endResource();
         $acl->addResource("BarResource", "FooResource")->endResource();
         $acl->changeBehaviour(SimpleAcl::BLACKLIST);
@@ -288,7 +318,7 @@ class SimpleAclTest extends TestCase
         
         $cache->expects($this->exactly(2))->method("get")->with(SimpleAcl::CACHE_IDENTIFIER)->will($this->onConsecutiveCalls(null, $cachedAcl));
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
 
         $this->assertNull($this->extractProperties($acl, ["acl"])["acl"]);
         $this->assertFalse($acl->buildFromCache($cache));
@@ -307,7 +337,7 @@ class SimpleAclTest extends TestCase
             $baseDir."/Directory"
         ];
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $this->assertNull($acl->buildFromFiles($files));
         $properties = $this->extractProperties($acl, ["behaviour", "acl", "currentProcessor", "currentResource"]);
@@ -330,7 +360,7 @@ class SimpleAclTest extends TestCase
             
         };
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $this->assertNull($acl->registerProcessor("FooProcessor", $processor));
         
         $processors = $this->extractProperties($acl, ["processors"])["processors"];
@@ -343,7 +373,7 @@ class SimpleAclTest extends TestCase
      */
     public function testChangeBehaviour(): void
     {
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $this->assertNull($acl->changeBehaviour(SimpleAcl::BLACKLIST));
     }
@@ -354,7 +384,7 @@ class SimpleAclTest extends TestCase
      */
     public function testAddResource(): void
     {
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $this->assertSame($acl, $acl->addResource("FooResource"));
         $current = $this->extractProperties($acl, ["currentResource"])["currentResource"];
@@ -383,7 +413,7 @@ class SimpleAclTest extends TestCase
      */
     public function testAddPermission(): void
     {
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $acl->addResource("FooResource")->addPermission("foo")->addPermission("bar")->endResource();
         $acl->addResource("BarResource", "FooResource")->addPermission("moz")->addPermission("poz")->endResource();
@@ -405,7 +435,7 @@ class SimpleAclTest extends TestCase
      */
     public function testAddEntry(): void
     {
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
         $acl
         ->addResource("FooResource")
@@ -494,7 +524,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage("Behaviour is invalid. Use SimpleAcl::WHITELIST or SimpleAcl::BLACKLIST const");
         
-        $acl = new SimpleAcl(3);
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock(), 3);
     }
     
     /**
@@ -505,7 +535,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(\TypeError::class);
         $this->expectExceptionMessage("Resource MUST be a string or an instance of AclBindableInterface. 'array' given");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->isAllowed($this->getMockBuilder(UserInterface::class)->getMock(), [], "foo");
     }
     
@@ -517,7 +547,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(ResourceNotFoundException::class);
         $this->expectExceptionMessage("This resource 'FooResource' is not registered into the acl");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->isAllowed($this->getMockBuilder(UserInterface::class)->getMock(), "FooResource", "foo");
     }
     
@@ -529,7 +559,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(PermissionNotFoundException::class);
         $this->expectExceptionMessage("This permission 'foo' is not registered into resource 'FooResource'");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->addResource("FooResource")->endResource();
         $acl->isAllowed($this->getMockBuilder(UserInterface::class)->getMock(), "FooResource", "foo");
     }
@@ -550,7 +580,7 @@ class SimpleAclTest extends TestCase
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user->expects($this->once())->method("getAttribute")->with(SimpleAcl::ACL_USER_ATTRIBUTE)->will($this->returnValue(null));
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->registerProcessor("FooProcessor", $processor);
         $acl->addResource("FooResource")->addPermission("bar")->endResource();
         
@@ -573,7 +603,7 @@ class SimpleAclTest extends TestCase
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user->expects($this->once())->method("getAttribute")->with(SimpleAcl::ACL_USER_ATTRIBUTE)->will($this->returnValue(null));
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->registerProcessor("FooProcessor", $processor);
         $acl->addResource("FooResource")->addPermission("bar")->endResource();
         
@@ -588,7 +618,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage("An error happen into this file '/home/algorab/Shared/Framework/Acl/tests/Fixtures/SimpleAcl/Invalid/ResourceNotFoundException.php' during the initialization of the acl. See : This parent resource 'FooResource' is not registered into the acl and cannot be extended to 'BarResource'");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->buildFromFiles([__DIR__."/Fixtures/SimpleAcl/Invalid/ResourceNotFoundException.php"]);
     }
     
@@ -600,7 +630,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage("An error happen into this file '/home/algorab/Shared/Framework/Acl/tests/Fixtures/SimpleAcl/Invalid/LogicException.php' during the initialization of the acl. See : This permission 'foo' is already registered into resource 'FooResource'");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->buildFromFiles([__DIR__."/Fixtures/SimpleAcl/Invalid/LogicException.php"]);
     }
     
@@ -612,7 +642,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage("An error happen into this file '/home/algorab/Shared/Framework/Acl/tests/Fixtures/SimpleAcl/Invalid/EntryNotFoundException.php' during the initialization of the acl. See : This entry 'foo' is not registered into resource 'FooResource'");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->buildFromFiles([__DIR__."/Fixtures/SimpleAcl/Invalid/EntryNotFoundException.php"]);
     }
     
@@ -624,7 +654,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage("An error happen into this file '/home/algorab/Shared/Framework/Acl/tests/Fixtures/SimpleAcl/Invalid/ProcessorError.php' during the initialization of the acl. See : Cannot register acl processor into file");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->buildFromFiles([__DIR__."/Fixtures/SimpleAcl/Invalid/ProcessorError.php"]);
     }
     
@@ -636,7 +666,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage("This file 'Foo' is neither a valid file or directory");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->buildFromFiles(["Foo"]);
     }
     
@@ -648,7 +678,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage("Behaviour is invalid. Use SimpleAcl::WHITELIST or SimpleAcl::BLACKLIST const");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->changeBehaviour(3);
     }
     
@@ -660,7 +690,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage("This resource 'FooResource' is already registered into the acl");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->addResource("FooResource")->endResource();
         $acl->addResource("FooResource");
     }
@@ -673,7 +703,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(ResourceNotFoundException::class);
         $this->expectExceptionMessage("This parent resource 'FooResource' is not registered into the acl and cannot be extended to 'BarResource'");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->addResource("BarResource", "FooResource");
     }
     
@@ -685,7 +715,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage("Cannot add a new resource now. End registration of 'FooResource' before new registration");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->addResource("FooResource")->addResource("BarResource");
     }
     
@@ -697,7 +727,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage("No resource has been defined");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->addPermission("foo");
     }
     
@@ -709,7 +739,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage("This permission 'foo' is already registered into resource 'FooResource'");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->addResource("FooResource")->addPermission("foo")->addPermission("foo");
     }
     
@@ -721,7 +751,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage("This permission 'foo' has been already declared into parent resource 'FooResource' of resource 'MozResource' and cannot be redeclared");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->addResource("FooResource")->addPermission("foo")->endResource();
         $acl->addResource("BarResource", "FooResource")->addPermission("bar")->endResource();
         $acl->addResource("MozResource", "BarResource")->addPermission("foo")->endResource();
@@ -735,7 +765,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage("Cannot add more permission into resource 'FooResource'");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->addResource("FooResource");
         for ($i = 0; $i < 32; $i++) {
             $acl->addPermission((string) $i);
@@ -750,7 +780,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(ResourceNotFoundException::class);
         $this->expectExceptionMessage("This resource 'FooResource' is not registered into the acl");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->addEntry("FooEntry", [], "FooResource");
     }
     
@@ -762,7 +792,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage("ROOT entry cannot be overriden into resource 'FooResource'");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->addResource("FooResource")->addEntry("ROOT", []);
     }
     
@@ -774,7 +804,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(EntryNotFoundException::class);
         $this->expectExceptionMessage("This entry 'foo' is not registered into resource 'FooResource'");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->addResource("FooResource")->addEntry("FooEntry", ["foo"]);
     }
     
@@ -786,7 +816,7 @@ class SimpleAclTest extends TestCase
         $this->expectException(EntryNotFoundException::class);
         $this->expectExceptionMessage("This entry 'foo' is not registered into resource 'BarResource' nor into one of its parents 'FooResource'");
         
-        $acl = new SimpleAcl();
+        $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $acl->addResource("FooResource")->endResource();
         $acl->addResource("BarResource", "FooResource")->addEntry("FooEntry", ["foo"]);
     }

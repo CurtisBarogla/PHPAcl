@@ -15,6 +15,7 @@ namespace Ness\Component\Acl\User;
 use Ness\Component\User\UserInterface;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
+use Ness\Component\Acl\Normalizer\LockPatternNormalizerInterface;
 
 /**
  * Simple implementation of AclUser
@@ -55,14 +56,24 @@ final class AclUser implements AclUserInterface
     private $fetched;
     
     /**
+     * Resource lock pattern normalizer
+     * 
+     * @var LockPatternNormalizerInterface
+     */
+    private $normalizer;
+    
+    /**
      * Initialize acl user
      * 
      * @param UserInterface $user
      *   User to wrap
+     * @param LockPatternNormalizerInterface $normalizer
+     *   Lock pattern resource name normalizer
      */
-    public function __construct(UserInterface $user)
+    public function __construct(UserInterface $user, LockPatternNormalizerInterface $normalizer)
     {
         $this->user = $user;
+        $this->normalizer = $normalizer;
     }
     
     /**
@@ -141,7 +152,7 @@ final class AclUser implements AclUserInterface
         if(null === $permissions = $this->getAttribute(self::ACL_ATTRIBUTE_IDENTIFIER))
             return null;
         
-        return $this->fetched[$name] = ($permissions["<{$name}>"] ?? $permissions[$name] ?? null);
+        return $this->fetched[$name] = ($permissions[$this->normalizer->apply($name)] ?? $permissions[$name] ?? null);
     }
     
     /**
@@ -245,7 +256,7 @@ final class AclUser implements AclUserInterface
             if(isset($permissions[$name]))
                 unset($permissions[$name]);
             
-            $permissions["<{$name}>"] = $this->getPermission($resource) ?? 0;
+            $permissions[$this->normalizer->apply($name)] = $this->getPermission($resource) ?? 0;
             $this->addAttribute(self::ACL_ATTRIBUTE_IDENTIFIER, $permissions);
             $this->locked[$name] = true;
             
@@ -253,7 +264,7 @@ final class AclUser implements AclUserInterface
         }
         
         $this->locked[$resource->getName()] = true;
-        $this->addAttribute(self::ACL_ATTRIBUTE_IDENTIFIER, ["<{$resource->getName()}>" => $this->getPermission($resource) ?? 0]);            
+        $this->addAttribute(self::ACL_ATTRIBUTE_IDENTIFIER, [$this->normalizer->apply($resource->getName()) => $this->getPermission($resource) ?? 0]);            
     }
     
     /**
@@ -264,7 +275,7 @@ final class AclUser implements AclUserInterface
     {
         $name = $resource->getName();
         return $this->locked[$name] 
-                    ?? $this->locked[$name] = ( (null !== $permissions = $this->getAttribute(self::ACL_ATTRIBUTE_IDENTIFIER)) ? isset($permissions["<{$name}>"]) : false );
+                    ?? $this->locked[$name] = ( (null !== $permissions = $this->getAttribute(self::ACL_ATTRIBUTE_IDENTIFIER)) ? isset($permissions[$this->normalizer->apply($name)]) : false );
     }
     
     /**

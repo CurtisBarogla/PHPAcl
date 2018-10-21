@@ -19,6 +19,7 @@ use Ness\Component\Acl\Resource\Processor\ResourceProcessorInterface;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\User\AclUser;
 use Ness\Component\Acl\User\AclUserInterface;
+use Ness\Component\Acl\Normalizer\LockPatternNormalizerInterface;
 
 /**
  * Native implementation using acl components
@@ -42,6 +43,13 @@ class Acl implements AclInterface
      * @var EntryLoaderInterface
      */
     private $entryLoader;
+    
+    /**
+     * Lock pattern resource name normalizer
+     * 
+     * @var LockPatternNormalizerInterface
+     */
+    private $normalizer;
     
     /**
      * Processor executes when acl mades it decision
@@ -78,11 +86,14 @@ class Acl implements AclInterface
      *   Resource loader
      * @param EntryLoaderInterface $entryLoader
      *   Entry loader
+     * @param LockPatternNormalizerInterface
+     *   Lock pattern resource name normalizer
      */
-    public function __construct(ResourceLoaderInterface $resourceLoader, EntryLoaderInterface $entryLoader)
+    public function __construct(ResourceLoaderInterface $resourceLoader, EntryLoaderInterface $entryLoader, LockPatternNormalizerInterface $normalizer)
     {
         $this->resourceLoader = $resourceLoader;
         $this->entryLoader = $entryLoader;
+        $this->normalizer = $normalizer;
     }
     
     /**
@@ -94,7 +105,7 @@ class Acl implements AclInterface
         $bindable = null;
         $instance = $this->validateAndLoadResource($resource, $bindable);
         $username = $user->getName();
-        $user = $this->loaded[$username] ?? ( $this->loaded[$username] = new AclUser($user) );
+        $user = $this->loaded[$username] ?? ( $this->loaded[$username] = new AclUser($user, $this->normalizer) );
         $mask = $user->getPermission($instance);
         $required = $this->getPermission($instance, $resource, $permission);
         
