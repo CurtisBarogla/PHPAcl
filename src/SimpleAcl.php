@@ -542,10 +542,15 @@ final class SimpleAcl implements AclInterface
     
     /**
      * End registration of the last resource
+     * 
+     * @return self
+     *   Fluent
      */
-    public function endResource(): void
+    public function endResource(): self
     {
         $this->currentResource = null;
+        
+        return $this;
     }
     
     /**
