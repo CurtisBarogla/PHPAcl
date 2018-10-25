@@ -16,7 +16,7 @@ use NessTest\Component\Acl\AclTestCase;
 use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderInterface;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\ResourceNotFoundException;
-use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderCollection;
+use Ness\Component\Acl\Resource\Loader\Resource\ChainResourceLoader;
 
 /**
  * ResourceLoaderCollection testcase
@@ -26,21 +26,21 @@ use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderCollection;
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-class ResourceLoaderCollectionTest extends AclTestCase
+class ChainResourceLoaderTest extends AclTestCase
 {
 
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderCollection::addLoader()
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\ChainResourceLoader::addLoader()
      */
     public function testAddLoader(): void
     {
-        $loader = new ResourceLoaderCollection($this->getMockBuilder(ResourceLoaderInterface::class)->getMock());
+        $loader = new ChainResourceLoader($this->getMockBuilder(ResourceLoaderInterface::class)->getMock());
         
         $this->assertNull($loader->addLoader($this->getMockBuilder(ResourceLoaderInterface::class)->getMock()));
     }
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderCollection::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\ChainResourceLoader::load()
      */
     public function testLoad(): void
     {
@@ -53,7 +53,7 @@ class ResourceLoaderCollectionTest extends AclTestCase
         $found->expects($this->once())->method("load")->with("Foo")->will($this->returnValue($resourceFound));
         $skipped->expects($this->never())->method("load");
         
-        $loader = new ResourceLoaderCollection($defaultLoader);
+        $loader = new ChainResourceLoader($defaultLoader);
         $loader->addLoader($found);
         $loader->addLoader($skipped);
         
@@ -63,7 +63,7 @@ class ResourceLoaderCollectionTest extends AclTestCase
                     /**_____EXCEPTIONS_____**/
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderCollection::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Resource\ChainResourceLoader::load()
      */
     public function testExceptionLoadWhenNoResourceHasBeenFound(): void
     {
@@ -76,7 +76,7 @@ class ResourceLoaderCollectionTest extends AclTestCase
         $defaultLoader->expects($this->once())->method("load")->with("Foo")->will($this->throwException(new ResourceNotFoundException()));
         $stillNotFound->expects($this->once())->method("load")->with("Foo")->will($this->throwException(new ResourceNotFoundException()));
         
-        $loader = new ResourceLoaderCollection($defaultLoader);
+        $loader = new ChainResourceLoader($defaultLoader);
         $loader->addLoader($stillNotFound);
         
         $loader->load("Foo");

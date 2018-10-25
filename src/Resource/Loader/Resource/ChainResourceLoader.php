@@ -21,7 +21,7 @@ use Ness\Component\Acl\Exception\ResourceNotFoundException;
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-class ResourceLoaderCollection implements ResourceLoaderInterface
+class ChainResourceLoader implements ResourceLoaderInterface
 {
     
     /**
