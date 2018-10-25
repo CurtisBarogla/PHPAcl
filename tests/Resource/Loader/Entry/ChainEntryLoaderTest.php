@@ -13,7 +13,7 @@ declare(strict_types = 1);
 namespace NessTest\Component\Acl\Resource\Loader\Entry;
 
 use NessTest\Component\Acl\AclTestCase;
-use Ness\Component\Acl\Resource\Loader\Entry\EntryLoaderCollection;
+use Ness\Component\Acl\Resource\Loader\Entry\ChainEntryLoader;
 use Ness\Component\Acl\Resource\Loader\Entry\EntryLoaderInterface;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\EntryNotFoundException;
@@ -27,21 +27,21 @@ use Ness\Component\Acl\Resource\EntryInterface;
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-class EntryLoaderCollectionTest extends AclTestCase
+class ChainEntryLoaderTest extends AclTestCase
 {
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\Entry\EntryLoaderCollection::addLoader()
+     * @see \Ness\Component\Acl\Resource\Loader\Entry\ChainEntryLoader::addLoader()
      */
     public function testAddLoader(): void
     {
-        $loader = new EntryLoaderCollection($this->getMockBuilder(EntryLoaderInterface::class)->getMock());
+        $loader = new ChainEntryLoader($this->getMockBuilder(EntryLoaderInterface::class)->getMock());
         
         $this->assertNull($loader->addLoader($this->getMockBuilder(EntryLoaderInterface::class)->getMock()));
     }
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\Entry\EntryLoaderCollection::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Entry\ChainEntryLoader::load()
      */
     public function testLoad(): void
     {
@@ -56,7 +56,7 @@ class EntryLoaderCollectionTest extends AclTestCase
         $loaderBar->expects($this->once())->method("load")->with($resource, "FooEntry", null)->will($this->returnValue($entry));
         $loaderMoz->expects($this->never())->method("load");
         
-        $loader = new EntryLoaderCollection($loaderFoo);
+        $loader = new ChainEntryLoader($loaderFoo);
         $loader->addLoader($loaderBar);
         $loader->addLoader($loaderMoz);
         
@@ -66,7 +66,7 @@ class EntryLoaderCollectionTest extends AclTestCase
                     /**_____EXCEPTIONS____**/
     
     /**
-     * @see \Ness\Component\Acl\Resource\Loader\Entry\EntryLoaderCollection::load()
+     * @see \Ness\Component\Acl\Resource\Loader\Entry\ChainEntryLoader::load()
      */
     public function testExceptionLoadWhenNotEntryFound(): void
     {
@@ -82,7 +82,7 @@ class EntryLoaderCollectionTest extends AclTestCase
         $loaderFoo->expects($this->once())->method("load")->with($resource, "FooEntry", null)->will($this->throwException(new EntryNotFoundException("FooEntry")));
         $loaderBar->expects($this->once())->method("load")->with($resource, "FooEntry", null)->will($this->throwException(new EntryNotFoundException("FooEntry")));
         
-        $loader = new EntryLoaderCollection($loaderFoo);
+        $loader = new ChainEntryLoader($loaderFoo);
         $loader->addLoader($loaderBar);
         
         $loader->load($resource, "FooEntry");

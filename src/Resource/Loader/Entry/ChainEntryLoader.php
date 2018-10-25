@@ -22,7 +22,7 @@ use Ness\Component\Acl\Exception\EntryNotFoundException;
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-class EntryLoaderCollection implements EntryLoaderInterface
+class ChainEntryLoader implements EntryLoaderInterface
 {
     
     /**
