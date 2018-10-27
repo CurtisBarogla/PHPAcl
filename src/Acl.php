@@ -103,22 +103,24 @@ class Acl implements AclInterface
     public function isAllowed(UserInterface $user, $resource, string $permission, ?\Closure $update = null): bool
     {
         $bindable = null;
-        $instance = $this->validateAndLoadResource($resource, $bindable);
+        $resourceInstance = $this->validateAndLoadResource($resource, $bindable);
         $username = $user->getName();
         $user = $this->loaded[$username] ?? ( $this->loaded[$username] = new AclUser($user, $this->normalizer) );
-        $mask = $user->getPermission($instance);
-        $required = $this->getPermission($instance, $resource, $permission);
+        $mask = $user->getPermission($resourceInstance);
+        $required = $this->getPermission($resourceInstance, $resource, $permission);
         
-        if($user->isLocked($instance) || (null !== $mask && !isset($bindable) && null === $update) ) 
+        if($user->isLocked($resourceInstance) || (null !== $mask && !isset($bindable) && null === $update) ) 
             return (bool) ( ($mask & $required) === $required );
 
         if(null === $mask) {
-            ($instance->getBehaviour() === ResourceInterface::BLACKLIST) ? $instance->grantRoot()->to($user) : $user->setPermission($instance, 0);
-            if(null !== $lockResult = $this->executeProcessors($instance, $user, $required)) {
+            ($resourceInstance->getBehaviour() === ResourceInterface::BLACKLIST) 
+                ? $resourceInstance->grantRoot()->to($user) 
+                : $user->setPermission($resourceInstance, 0);
+            if(null !== $lockResult = $this->executeProcessors($resourceInstance, $user, $required)) {
                 unset($this->loaded[$username]);
                 return $lockResult;
             }
-            $mask = $user->getPermission($instance);
+            $mask = $user->getPermission($resourceInstance);
             unset($this->loaded[$username]);
         }
         
@@ -130,7 +132,7 @@ class Acl implements AclInterface
         if(null === $update = $this->defineUpdate($update, $bindable, $user, $permission, $result))
             return $result;
                      
-        return ($instance->getBehaviour() === ResourceInterface::WHITELIST) ? $update : !$update;
+        return ($resourceInstance->getBehaviour() === ResourceInterface::WHITELIST) ? $update : !$update;
     }
     
     /**
