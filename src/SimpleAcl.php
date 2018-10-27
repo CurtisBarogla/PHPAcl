@@ -177,7 +177,7 @@ final class SimpleAcl implements AclInterface
      * 
      * @var string
      */
-    public const CACHE_IDENTIFIER = "builded_cached_acl";
+    public const CACHE_IDENTIFIER = "ness_builded_cached_acl";
     
     /**
      * Initialize acl
