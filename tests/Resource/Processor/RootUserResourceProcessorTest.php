@@ -19,7 +19,7 @@ use Ness\Component\Acl\User\AclUser;
 use Ness\Component\Acl\Resource\Loader\Entry\EntryLoaderInterface;
 use Ness\Component\Authentication\User\AuthenticatedUserInterface;
 use Ness\Component\Acl\Normalizer\LockPatternNormalizerInterface;
-use NessTest\Component\Acl\Fixtures\Processor\MockAwareUserRootUserResourceProcessor;
+use Ness\Component\Acl\Resource\Processor\RootUserResourceProcessor;
 
 /**
  * RootUserResourceProcessor testcase
@@ -33,7 +33,7 @@ class RootUserResourceProcessorTest extends AclTestCase
 {
     
     /**
-     * @see \Ness\Component\Acl\Resource\Processor\AbstractRootUserResourceProcessor::process()
+     * @see \Ness\Component\Acl\Resource\Processor\RootUserResourceProcessor::process()
      */
     public function testProcess(): void
     {
@@ -44,9 +44,8 @@ class RootUserResourceProcessorTest extends AclTestCase
         $resource->expects($this->never())->method("grantRoot");
         $aclUser = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
-        $processor = new MockAwareUserRootUserResourceProcessor();
+        $processor = new RootUserResourceProcessor();
         $processor->setUser($aclUser);
-        $processor->setBaseUser($user);
         
         $this->assertNull($processor->process($resource, $this->getMockBuilder(EntryLoaderInterface::class)->getMock()));
         
@@ -55,7 +54,6 @@ class RootUserResourceProcessorTest extends AclTestCase
             
             $user = $this->getMockBuilder(AuthenticatedUserInterface::class)->getMock();
             $user->expects($this->once())->method("isRoot")->will($this->returnValue(false));
-            $processor->setBaseUser($user);
             
             $aclUser = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
             
@@ -68,8 +66,6 @@ class RootUserResourceProcessorTest extends AclTestCase
             $user = $this->getMockBuilder(AuthenticatedUserInterface::class)->getMock();
             $user->expects($this->once())->method("isRoot")->will($this->returnValue(true));
             $user->expects($this->once())->method("addAttribute");
-            
-            $processor->setBaseUser($user);
             
             $aclUser = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
             
@@ -84,34 +80,34 @@ class RootUserResourceProcessorTest extends AclTestCase
     }
     
     /**
-     * @see \Ness\Component\Acl\Resource\Processor\AbstractRootUserResourceProcessor::getIdentifier()
+     * @see \Ness\Component\Acl\Resource\Processor\RootUserResourceProcessor::getIdentifier()
      */
     public function testGetIdentifier(): void
     {
-        $processor = new MockAwareUserRootUserResourceProcessor();
+        $processor = new RootUserResourceProcessor();
         $this->assertSame("AclRootUserProcessor", $processor->getIdentifier());
     }
     
     /**
-     * @see \Ness\Component\Acl\Resource\Processor\AbstractRootUserResourceProcessor::setUser()
+     * @see \Ness\Component\Acl\Resource\Processor\RootUserResourceProcessor::setUser()
      */
     public function testSetUser(): void
     {
         $aclUser = new AclUser($this->getMockBuilder(UserInterface::class)->getMock(), $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
-        $processor = new MockAwareUserRootUserResourceProcessor();
+        $processor = new RootUserResourceProcessor();
         
         $this->assertNull($processor->setUser($aclUser));
     }
     
     /**
-     * @see \Ness\Component\Acl\Resource\Processor\AbstractRootUserResourceProcessor::getUser()
+     * @see \Ness\Component\Acl\Resource\Processor\RootUserResourceProcessor::getUser()
      */
     public function testGetUser(): void
     {
         $aclUser = new AclUser($this->getMockBuilder(UserInterface::class)->getMock(), $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         
-        $processor = new MockAwareUserRootUserResourceProcessor();
+        $processor = new RootUserResourceProcessor();
         $processor->setUser($aclUser);
         
         $this->assertSame($aclUser, $processor->getUser());

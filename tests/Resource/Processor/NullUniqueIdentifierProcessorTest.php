@@ -16,8 +16,8 @@ use NessTest\Component\Acl\AclTestCase;
 use Ness\Component\Acl\Resource\EntryInterface;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Resource\Loader\Entry\EntryLoaderInterface;
-use Ness\Component\Acl\User\AclUserInterface;
 use NessTest\Component\Acl\Fixtures\Processor\NullUniqueIdentifierProcessor;
+use Ness\Component\Acl\User\AclUser;
 
 /**
  * Fixture Only
@@ -36,7 +36,7 @@ class NullUniqueIdentifierProcessorTest extends AclTestCase
      */
     public function testProcess(): void
     {
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
 
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->never())->method("getBehaviour")->will($this->returnValue(ResourceInterface::WHITELIST));

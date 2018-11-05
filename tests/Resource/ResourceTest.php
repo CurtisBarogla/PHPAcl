@@ -15,7 +15,7 @@ namespace NessTest\Component\Acl\Resource;
 use NessTest\Component\Acl\AclTestCase;
 use Ness\Component\Acl\Resource\Resource;
 use Ness\Component\Acl\Resource\ResourceInterface;
-use Ness\Component\Acl\User\AclUserInterface;
+use Ness\Component\Acl\User\AclUser;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
 use Ness\Component\Acl\Exception\InvalidArgumentException;
 
@@ -106,7 +106,7 @@ class ResourceTest extends AclTestCase
         $resource->addPermission("bar");
         $resource->addPermission("moz");
         
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         $user->expects($this->never())->method("getPermission");
         
         $this->assertNull($resource->to($user));
@@ -123,7 +123,7 @@ class ResourceTest extends AclTestCase
         $resource->addPermission("bar");
         $resource->addPermission("moz");
         
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         $user->expects($this->once())->method("isLocked")->with($resource)->will($this->returnValue(true));
         $user->expects($this->never())->method("getPermission");
         
@@ -141,7 +141,7 @@ class ResourceTest extends AclTestCase
         $resource->addPermission("bar");
         $resource->addPermission("moz");
         
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         $user->expects($this->once())->method("isLocked")->with($resource)->will($this->returnValue(false));
         $user->expects($this->once())->method("getPermission")->with($resource)->will($this->returnValue(null));
         $user->expects($this->once())->method("setPermission")->with($resource, 3);
@@ -154,7 +154,7 @@ class ResourceTest extends AclTestCase
         $resource->addPermission("bar");
         $resource->addPermission("moz");
         
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         $user->expects($this->exactly(2))->method("isLocked")->with($resource)->will($this->returnValue(false));
         $user->expects($this->exactly(2))->method("getPermission")->with($resource)->will($this->returnValue(null));
         $user->expects($this->exactly(2))->method("setPermission")->withConsecutive([$resource, 3], [$resource, 7]);
@@ -174,7 +174,7 @@ class ResourceTest extends AclTestCase
         $resource->addPermission("bar");
         $resource->addPermission("moz");
         
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         $user->expects($this->once())->method("isLocked")->with($resource)->will($this->returnValue(false));
         $user->expects($this->once())->method("getPermission")->with($resource)->will($this->returnValue(7));
         $user->expects($this->once())->method("setPermission")->withConsecutive([$resource, 3]);

@@ -12,7 +12,7 @@ declare(strict_types = 1);
 
 namespace Ness\Component\Acl\Resource;
 
-use Ness\Component\Acl\User\AclUserInterface;
+use Ness\Component\Acl\User\AclUser;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
 use Ness\Component\Acl\Exception\InvalidArgumentException;
 
@@ -155,7 +155,7 @@ class Resource implements ResourceInterface, \Serializable
      * {@inheritDoc}
      * @see \Ness\Component\Acl\Resource\ResourceInterface::to()
      */
-    public function to(AclUserInterface $user): void
+    public function to(AclUser $user): void
     {
         if(null === $this->actions)
             return;

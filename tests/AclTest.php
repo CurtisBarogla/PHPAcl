@@ -21,7 +21,6 @@ use PHPUnit\Framework\MockObject\MockObject;
 use Ness\Component\Acl\Exception\ResourceNotFoundException;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
 use Ness\Component\Acl\Resource\ResourceInterface;
-use Ness\Component\Acl\User\AclUserInterface;
 use Ness\Component\Acl\AclBindableInterface;
 use Ness\Component\Acl\Resource\Resource;
 use Ness\Component\Acl\Resource\Processor\AbstractResourceProcessor;
@@ -111,7 +110,7 @@ class AclTest extends AclTestCase
                 ->will($this->returnValue($resource));
         };
         
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         $user->expects($this->once())->method("getName")->will($this->returnValue("FooUser"));
         $user
             ->expects($this->exactly(3))
@@ -151,7 +150,7 @@ class AclTest extends AclTestCase
         $resource->expects($this->once())->method("getPermission")->with("foo")->will($this->returnValue(4));
         $resource->expects($this->once())->method("getBehaviour")->will($this->returnValue(ResourceInterface::BLACKLIST));
         
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         $user->expects($this->once())->method("getName")->will($this->returnValue("FooUser"));
         $user
             ->expects($this->once())
@@ -190,7 +189,7 @@ class AclTest extends AclTestCase
         $resource->expects($this->once())->method("getPermission")->with("foo")->will($this->returnValue(1));
         $resource->expects($this->once())->method("getBehaviour")->will($this->returnValue(ResourceInterface::WHITELIST));
         
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         $user->expects($this->once())->method("setPermission")->with($resource, 0);
         $user->expects($this->once())->method("getName")->will($this->returnValue("FooUser"));
         $user
@@ -233,7 +232,7 @@ class AclTest extends AclTestCase
         $resourceMoz->expects($this->once())->method("getPermission")->with("foo")->will($this->returnValue(2));
         $resourceMoz->expects($this->once())->method("getBehaviour")->will($this->returnValue(ResourceInterface::BLACKLIST));
         
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         
         $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
         $bindable->expects($this->once())->method("getAclResourceName")->will($this->returnValue("BarResource"));
@@ -294,7 +293,7 @@ class AclTest extends AclTestCase
         $resourceMoz->expects($this->once())->method("getPermission")->with("foo")->will($this->returnValue(2));
         $resourceMoz->expects($this->once())->method("getBehaviour")->will($this->returnValue(ResourceInterface::WHITELIST));
         
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         
         $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
         $bindable->expects($this->once())->method("getAclResourceName")->will($this->returnValue("BarResource"));
@@ -350,7 +349,7 @@ class AclTest extends AclTestCase
         $resourceFoo->expects($this->once())->method("getPermission")->with("foo")->will($this->returnValue(1));
         $resourceBar->expects($this->once())->method("getPermission")->with("foo")->will($this->returnValue(2));
         
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         
         $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
         $bindable->expects($this->once())->method("getAclResourceName")->will($this->returnValue("BarResource"));
@@ -397,7 +396,7 @@ class AclTest extends AclTestCase
         $resourceBar = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resourceBar->expects($this->once())->method("getPermission")->with("foo")->will($this->returnValue(1));
         
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         $user->expects($this->exactly(3))->method("getName")->will($this->returnValue("FooUser"));
         $user
             ->expects($this->exactly(3))
@@ -513,12 +512,12 @@ class AclTest extends AclTestCase
      * 
      * @param string $username
      *   Acl username
-     * @param AclUserInterface $user
+     * @param AclUser $user
      *   User instance to inject
      * @param Acl $acl
      *   Acl inject which the user is injected
      */
-    private function injectAclUser(string $username, AclUserInterface $user, Acl $acl): void
+    private function injectAclUser(string $username, AclUser $user, Acl $acl): void
     {
         $reflection = new \ReflectionClass($acl);
         $property = $reflection->getProperty("loaded");

@@ -12,7 +12,7 @@ declare(strict_types = 1);
 
 namespace Ness\Component\Acl\Resource\Processor;
 
-use Ness\Component\Acl\User\AclUserInterface;
+use Ness\Component\Acl\User\AclUser;
 
 /**
  * Common to all resource processors
@@ -26,7 +26,7 @@ abstract class AbstractResourceProcessor implements ResourceProcessorInterface
     /**
      * Acl user
      * 
-     * @var AclUserInterface
+     * @var AclUser
      */
     private $user;
     
@@ -34,7 +34,7 @@ abstract class AbstractResourceProcessor implements ResourceProcessorInterface
      * {@inheritDoc}
      * @see \Ness\Component\Acl\Resource\Processor\ResourceProcessorInterface::setUser()
      */
-    public function setUser(AclUserInterface $user): void
+    public function setUser(AclUser $user): void
     {
         $this->user = $user;
     }
@@ -43,7 +43,7 @@ abstract class AbstractResourceProcessor implements ResourceProcessorInterface
      * {@inheritDoc}
      * @see \Ness\Component\Acl\Resource\Processor\ResourceProcessorInterface::getUser()
      */
-    public function getUser(): AclUserInterface
+    public function getUser(): AclUser
     {
         return $this->user;
     }

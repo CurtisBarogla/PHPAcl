@@ -14,7 +14,7 @@ namespace NessTest\Component\Acl\Resource\Processor;
 
 use NessTest\Component\Acl\AclTestCase;
 use Ness\Component\Acl\Resource\Processor\RoleUserResourceProcessor;
-use Ness\Component\Acl\User\AclUserInterface;
+use Ness\Component\Acl\User\AclUser;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Resource\Loader\Entry\EntryLoaderInterface;
 use Ness\Component\Acl\Resource\EntryInterface;
@@ -49,7 +49,7 @@ class RoleUserResourceProcessorTest extends AclTestCase
         $entryBar = generateEntry(["moz", "bar"], $this, $this->once());
         $entryMoz = generateEntry(["poz", "boz"], $this, $this->once());
         
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         $user->expects($this->once())->method("getRoles")->will($this->returnValue(["Foo", "Bar", "Moz", "Poz"]));
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
@@ -86,7 +86,7 @@ class RoleUserResourceProcessorTest extends AclTestCase
         $entryBar = generateEntry(["moz", "bar"], $this, $this->once());
         $entryMoz = generateEntry(["poz", "boz"], $this, $this->once());
         
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         $user->expects($this->once())->method("getRoles")->will($this->returnValue(["Foo", "Bar", "Moz", "Poz"]));
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
@@ -124,7 +124,7 @@ class RoleUserResourceProcessorTest extends AclTestCase
      */
     public function testProcessWhenUserHasNoRoles(): void
     {
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         $user->expects($this->once())->method("getRoles")->will($this->returnValue(null));
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();

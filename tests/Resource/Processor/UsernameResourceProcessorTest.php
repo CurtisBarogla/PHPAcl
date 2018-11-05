@@ -15,7 +15,7 @@ namespace NessTest\Component\Acl\Resource\Processor;
 use NessTest\Component\Acl\AclTestCase;
 use Ness\Component\Acl\Resource\Processor\UsernameResourceProcessor;
 use Ness\Component\Acl\Resource\ResourceInterface;
-use Ness\Component\Acl\User\AclUserInterface;
+use Ness\Component\Acl\User\AclUser;
 use Ness\Component\Acl\Resource\Loader\Entry\EntryLoaderInterface;
 use Ness\Component\Acl\Exception\EntryNotFoundException;
 use Ness\Component\Acl\Resource\EntryInterface;
@@ -36,7 +36,7 @@ class UsernameResourceProcessorTest extends AclTestCase
      */
     public function testProcessWhenResourceWhitelist(): void
     {
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         $user->expects($this->once())->method("getName")->will($this->returnValue("FooUser"));
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
@@ -61,7 +61,7 @@ class UsernameResourceProcessorTest extends AclTestCase
      */
     public function testProcessWhenResourceBlacklist(): void
     {
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         $user->expects($this->once())->method("getName")->will($this->returnValue("FooUser"));
         
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
@@ -89,7 +89,7 @@ class UsernameResourceProcessorTest extends AclTestCase
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->never())->method("getBehaviour");
         
-        $user = $this->getMockBuilder(AclUserInterface::class)->getMock();
+        $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         $user->expects($this->once())->method("getName")->will($this->returnValue("FooUser"));
         
         $loader = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();

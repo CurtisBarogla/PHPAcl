@@ -18,7 +18,6 @@ use Ness\Component\Acl\Resource\Loader\Entry\EntryLoaderInterface;
 use Ness\Component\Acl\Resource\Processor\ResourceProcessorInterface;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\User\AclUser;
-use Ness\Component\Acl\User\AclUserInterface;
 use Ness\Component\Acl\Normalizer\LockPatternNormalizerInterface;
 
 /**
@@ -75,7 +74,7 @@ class Acl implements AclInterface
     /**
      * Acl users loaded
      * 
-     * @var AclUserInterface[]
+     * @var AclUser[]
      */
     private $loaded;
     
@@ -185,7 +184,7 @@ class Acl implements AclInterface
      * 
      * @param ResourceInterface $resource
      *   Resource which the processor is executed
-     * @param AclUserInterface $user
+     * @param AclUser $user
      *   Acl user
      * @param int $required
      *   Current required permission mask
@@ -193,7 +192,7 @@ class Acl implements AclInterface
      * @return bool|null
      *   Return a boolean if the user has been locked during the execution of a processor representing the user right to perform the action or null
      */
-    private function executeProcessors(ResourceInterface $resource, AclUserInterface $user, int $required): ?bool
+    private function executeProcessors(ResourceInterface $resource, AclUser $user, int $required): ?bool
     {
         if(null === $this->processors)
             return null;

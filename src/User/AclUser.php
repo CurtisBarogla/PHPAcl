@@ -18,13 +18,12 @@ use Ness\Component\Acl\Exception\PermissionNotFoundException;
 use Ness\Component\Acl\Normalizer\LockPatternNormalizerInterface;
 
 /**
- * Simple implementation of AclUser
- * Wrap a basic user
+ * Extending basic user to make it able to communicate with acl components
  * 
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-final class AclUser implements AclUserInterface
+class AclUser implements UserInterface
 {
     
     /**
@@ -61,6 +60,13 @@ final class AclUser implements AclUserInterface
      * @var LockPatternNormalizerInterface
      */
     private $normalizer;
+    
+    /**
+     * Identifier to access permission setted into the user's attributes
+     *
+     * @var string
+     */
+    public const ACL_ATTRIBUTE_IDENTIFIER = "NESS_ACL_RESOURCE";
     
     /**
      * Initialize acl user
@@ -140,8 +146,13 @@ final class AclUser implements AclUserInterface
     }
 
     /**
-     * {@inheritDoc}
-     * @see \Ness\Component\Acl\User\AclUserInterface::getPermission()
+     * Get permission accorded to the user for a resource
+     * 
+     * @param ResourceInterface $resource
+     *   Resource to get the permission
+     * 
+     * @return int|null
+     *   Value representing the permission. Returns null if no permission found for this resource
      */
     public function getPermission(ResourceInterface $resource): ?int
     {
@@ -156,8 +167,12 @@ final class AclUser implements AclUserInterface
     }
     
     /**
-     * {@inheritDoc}
-     * @see \Ness\Component\Acl\User\AclUserInterface::setPermission()
+     * Set permission accorded to a resource
+     * 
+     * @param ResourceInterface $resource
+     *   Resource to accord to permission
+     * @param int $permission
+     *   Value representing the permission
      */
     public function setPermission(ResourceInterface $resource, int $permission): void
     {
@@ -173,10 +188,18 @@ final class AclUser implements AclUserInterface
     }
     
     /**
-     * {@inheritDoc}
-     * @see \Ness\Component\Acl\User\AclUserInterface::grant()
+     * Grant permission over the resource setted into the next call of to
+     * 
+     * @param string|array $permissions
+     *   Permission to grant
+     *   
+     * @return self
+     *   Fluent
+     *   
+     * @throws \TypeError
+     *   When permission is neither a string or an array
      */
-    public function grant($permissions): AclUserInterface
+    public function grant($permissions): self
     {
         $this->queue($permissions, "grant");
         
@@ -184,10 +207,12 @@ final class AclUser implements AclUserInterface
     }
     
     /**
-     * {@inheritDoc}
-     * @see \Ness\Component\Acl\User\AclUserInterface::grantRoot()
+     * Grant root permission over the resource setted into the next call of to
+     *
+     * @return self
+     *   Fluent
      */
-    public function grantRoot(): AclUserInterface
+    public function grantRoot(): self
     {
         $this->queue("root", "root");
         
@@ -195,10 +220,18 @@ final class AclUser implements AclUserInterface
     }
     
     /**
-     * {@inheritDoc}
-     * @see \Ness\Component\Acl\User\AclUserInterface::deny()
+     * Deny permission over the resource setted into the next call of to
+     *
+     * @param string|array $permissions
+     *   Permission to deny
+     *
+     * @return self
+     *   Fluent
+     *   
+     * @throws \TypeError
+     *   When permission is neither a string or an array
      */
-    public function deny($permissions): AclUserInterface
+    public function deny($permissions): self
     {
         $this->queue($permissions, "deny");
         
@@ -206,8 +239,13 @@ final class AclUser implements AclUserInterface
     }
     
     /**
-     * {@inheritDoc}
-     * @see \Ness\Component\Acl\User\AclUserInterface::on()
+     * Finalize all grant an deny actions over a resource
+     * 
+     * @param ResourceInterface $resource
+     *   Resource processed
+     *   
+     * @throws PermissionNotFoundException
+     *   When a permission has been not setted into the resource
      */
     public function on(ResourceInterface $resource): void
     {
@@ -241,8 +279,11 @@ final class AclUser implements AclUserInterface
     }
     
     /**
-     * {@inheritDoc}
-     * @see \Ness\Component\Acl\User\AclUserInterface::lock()
+     * Lock permission on the resource.
+     * If previous permission setting has been made and not attributed via a on() call, lock MUST attribute it before locking the user
+     * 
+     * @param ResourceInterface $resource
+     *   Resource to lock
      */
     public function lock(ResourceInterface $resource): void
     {
@@ -268,8 +309,14 @@ final class AclUser implements AclUserInterface
     }
     
     /**
-     * {@inheritDoc}
-     * @see \Ness\Component\Acl\User\AclUserInterface::isLocked()
+     * Check permissions for this user has been locked.
+     * If locked, no modification are possible on the user on the resource
+     * 
+     * @param ResourceInterface $resource
+     *   Resource to check
+     * 
+     * @return bool
+     *   True if the permission cannot be modified. False otherwise
      */
     public function isLocked(ResourceInterface $resource): bool
     {

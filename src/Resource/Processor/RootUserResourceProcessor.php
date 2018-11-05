@@ -15,7 +15,6 @@ namespace Ness\Component\Acl\Resource\Processor;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Resource\Loader\Entry\EntryLoaderInterface;
 use Ness\Component\Authentication\User\AuthenticatedUserInterface;
-use Ness\Component\User\UserInterface;
 
 /**
  * Grant root permission on root user.
@@ -24,7 +23,7 @@ use Ness\Component\User\UserInterface;
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-abstract class AbstractRootUserResourceProcessor extends AbstractResourceProcessor
+class RootUserResourceProcessor extends AbstractResourceProcessor
 {
     
     /**
@@ -33,7 +32,8 @@ abstract class AbstractRootUserResourceProcessor extends AbstractResourceProcess
      */
     public function process(ResourceInterface $resource, EntryLoaderInterface $loader): void
     {
-        if($this->getBaseUser() instanceof AuthenticatedUserInterface && $this->getBaseUser()->isRoot()) {
+        $base = $this->getUser()->getUser();
+        if($base instanceof AuthenticatedUserInterface && $base->isRoot()) {
             $resource->grantRoot()->to($this->getUser());
             $this->getUser()->lock($resource);
         }
@@ -47,13 +47,5 @@ abstract class AbstractRootUserResourceProcessor extends AbstractResourceProcess
     {
         return "AclRootUserProcessor";
     }
-    
-    /**
-     * Get a reference to the base user handled by the acl component
-     * 
-     * @return UserInterface
-     *   Base user
-     */
-    abstract protected function getBaseUser(): UserInterface;
 
 }

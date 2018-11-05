@@ -12,7 +12,7 @@ declare(strict_types = 1);
 
 namespace Ness\Component\Acl\Resource;
 
-use Ness\Component\Acl\User\AclUserInterface;
+use Ness\Component\Acl\User\AclUser;
 use Ness\Component\Acl\Exception\ResourceNotFoundException;
 use Ness\Component\Acl\Exception\PermissionNotFoundException;
 
@@ -97,10 +97,10 @@ interface ResourceInterface
     /**
      * Finalize all operations previously setted over the given user and update its permission
      * 
-     * @param AclUserInterface $user
+     * @param AclUser $user
      *   User to alter the permission
      */
-    public function to(AclUserInterface $user): void;
+    public function to(AclUser $user): void;
     
     /**
      * Get all permissions declared into the resource

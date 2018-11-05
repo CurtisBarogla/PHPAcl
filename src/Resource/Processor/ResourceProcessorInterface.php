@@ -14,7 +14,7 @@ namespace Ness\Component\Acl\Resource\Processor;
 
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Resource\Loader\Entry\EntryLoaderInterface;
-use Ness\Component\Acl\User\AclUserInterface;
+use Ness\Component\Acl\User\AclUser;
 
 /**
  * Process a user over the resource to modify its permissions over datas setted into it
@@ -38,18 +38,18 @@ interface ResourceProcessorInterface
     /**
      * Set a user processed by this processor
      * 
-     * @param AclUserInterface $user
+     * @param AclUser $user
      *   Acl user
      */
-    public function setUser(AclUserInterface $user): void;
+    public function setUser(AclUser $user): void;
     
     /**
      * Get the user processed
      * 
-     * @return AclUserInterface
+     * @return AclUser
      *   Acl user
      */
-    public function getUser(): AclUserInterface;
+    public function getUser(): AclUser;
     
     /**
      * Identify the processor
