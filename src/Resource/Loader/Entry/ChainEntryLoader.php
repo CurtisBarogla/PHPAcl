@@ -68,9 +68,7 @@ class ChainEntryLoader implements EntryLoaderInterface
             }
         }
         
-        $exception = new EntryNotFoundException($entry, "This entry '{$entry}' cannot be found for resource '{$resource->getName()}' via all registered loaders");
-        
-        throw $exception;
+        throw new EntryNotFoundException($entry, "This entry '{$entry}' cannot be found for resource '{$resource->getName()}' via all registered loaders");
     }
     
 }
