@@ -16,7 +16,6 @@ use Ness\Component\Acl\Resource\EntryInterface;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderAwareInterface;
 use Ness\Component\Acl\Traits\ResourceLoaderAwareTrait;
-use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderInterface;
 use Ness\Component\Acl\Resource\ExtendableResourceInterface;
 use Ness\Component\Acl\Exception\EntryNotFoundException;
 use Ness\Component\Acl\Resource\Loader\Entry\Traits\InheritanceEntryLoaderTrait;
@@ -32,13 +31,6 @@ class ResourceInheritanceEntryLoaderWrapper implements EntryLoaderInterface, Res
     
     use ResourceLoaderAwareTrait;
     use InheritanceEntryLoaderTrait;
-    
-    /**
-     * Resource loader
-     * 
-     * @var ResourceLoaderInterface
-     */
-    private $loader;
     
     /**
      * Entry loader wrapped

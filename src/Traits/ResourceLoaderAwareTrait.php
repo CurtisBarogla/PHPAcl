@@ -24,6 +24,13 @@ trait ResourceLoaderAwareTrait
 {
     
     /**
+     * Resource loader
+     * 
+     * @var ResourceLoaderInterface
+     */
+    private $loader;
+    
+    /**
      * Get linked resource loader
      * 
      * @return ResourceLoaderInterface
