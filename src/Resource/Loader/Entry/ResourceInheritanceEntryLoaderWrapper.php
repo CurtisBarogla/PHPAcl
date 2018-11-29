@@ -56,6 +56,9 @@ class ResourceInheritanceEntryLoaderWrapper implements EntryLoaderInterface, Res
      */
     public function load(ResourceInterface $resource, string $entry, ?string $processor = null): EntryInterface
     {
+        if($this->wrapped instanceof ResourceLoaderAwareInterface)
+            $this->wrapped->setLoader($this->getLoader());
+        
         if(!$resource instanceof ExtendableResourceInterface)
             return $this->wrapped->load($resource, $entry, $processor);
 

@@ -46,11 +46,12 @@ class ResourceInheritanceEntryLoaderWrapperTest extends AclTestCase
         $resourceLoader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
         $resourceLoader->expects($this->never())->method("load");
         
-        $wrapped = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();
+        $wrapped = $this->getMockBuilder([EntryLoaderInterface::class, ResourceLoaderAwareInterface::class])->getMock();
         $wrapped
             ->expects($this->once())
             ->method("load")->with($resource, "FooEntry", "FooProcessor")
             ->will($this->onConsecutiveCalls($this->returnValue($entry)));
+        $wrapped->expects($this->once())->method("setLoader")->with($resourceLoader);
         
         $loader = new ResourceInheritanceEntryLoaderWrapper($wrapped);
         $loader->setLoader($resourceLoader);
