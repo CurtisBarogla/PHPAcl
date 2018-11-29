@@ -18,6 +18,8 @@ use Ness\Component\Acl\Resource\Loader\Entry\EntryLoaderInterface;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\EntryNotFoundException;
 use Ness\Component\Acl\Resource\EntryInterface;
+use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderAwareInterface;
+use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderInterface;
 
 /**
  * EntryLoaderCollection testcase
@@ -47,11 +49,13 @@ class ChainEntryLoaderTest extends AclTestCase
     {
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $entry = $this->getMockBuilder(EntryInterface::class)->getMock();
+        $resourceLoader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
         
         $loaderFoo = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();
-        $loaderBar = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();
+        $loaderBar = $this->getMockBuilder([EntryLoaderInterface::class, ResourceLoaderAwareInterface::class])->getMock();
+        $loaderBar->expects($this->once())->method("setLoader")->with($resourceLoader);
         $loaderMoz = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();
-        
+     
         $loaderFoo->expects($this->once())->method("load")->with($resource, "FooEntry", null)->will($this->throwException(new EntryNotFoundException("FooEntry")));
         $loaderBar->expects($this->once())->method("load")->with($resource, "FooEntry", null)->will($this->returnValue($entry));
         $loaderMoz->expects($this->never())->method("load");
@@ -59,6 +63,7 @@ class ChainEntryLoaderTest extends AclTestCase
         $loader = new ChainEntryLoader($loaderFoo);
         $loader->addLoader($loaderBar);
         $loader->addLoader($loaderMoz);
+        $loader->setLoader($resourceLoader);
         
         $this->assertSame($entry, $loader->load($resource, "FooEntry"));
     }

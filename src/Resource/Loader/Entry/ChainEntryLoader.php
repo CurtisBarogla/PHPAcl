@@ -15,6 +15,8 @@ namespace Ness\Component\Acl\Resource\Loader\Entry;
 use Ness\Component\Acl\Resource\EntryInterface;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\Exception\EntryNotFoundException;
+use Ness\Component\Acl\Resource\Loader\Resource\ResourceLoaderAwareInterface;
+use Ness\Component\Acl\Traits\ResourceLoaderAwareTrait;
 
 /**
  * Try to load an entry from a set of EntryLoaderInterface
@@ -22,8 +24,10 @@ use Ness\Component\Acl\Exception\EntryNotFoundException;
  * @author CurtisBarogla <curtis_barogla@outlook.fr>
  *
  */
-class ChainEntryLoader implements EntryLoaderInterface
+class ChainEntryLoader implements EntryLoaderInterface, ResourceLoaderAwareInterface
 {
+    
+    use ResourceLoaderAwareTrait;
     
     /**
      * Loaders registered
@@ -62,6 +66,9 @@ class ChainEntryLoader implements EntryLoaderInterface
     {
         foreach ($this->loaders as $loader) {
             try {
+                if($loader instanceof ResourceLoaderAwareInterface)
+                    $loader->setLoader($this->getLoader());
+                
                 return $loader->load($resource, $entry, $processor);
             } catch (EntryNotFoundException $e) {
                 continue;
