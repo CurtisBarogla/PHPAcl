@@ -170,7 +170,7 @@ final class SimpleAcl implements AclInterface
      * 
      * @var string
      */
-    public const ACL_USER_ATTRIBUTE = "ACL_PERMISSIONS";
+    public const ACL_USER_ATTRIBUTE = "NESS_ACL_PERMISSIONS";
     
     /**
      * Acl cache key
