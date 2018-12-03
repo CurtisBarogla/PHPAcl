@@ -112,9 +112,7 @@ class Acl implements AclInterface
             return (bool) ( ($mask & $required) === $required );
 
         if(null === $mask) {
-            ($resourceInstance->getBehaviour() === ResourceInterface::BLACKLIST) 
-                ? $resourceInstance->grantRoot()->to($user) 
-                : $user->setPermission($resourceInstance, 0);
+            $this->initializePermissions($resourceInstance, $user);
             if(null !== $lockResult = $this->executeProcessors($resourceInstance, $user, $required)) {
                 unset($this->loaded[$username]);
                 return $lockResult;
@@ -145,6 +143,24 @@ class Acl implements AclInterface
     public function registerProcessor(ResourceProcessorInterface $processor): void
     {
         $this->processors[$processor->getIdentifier()] = $processor;
+    }
+    
+    /**
+     * Initialize permissions of a user over a Resource depending of its behaviour
+     * 
+     * @param ResourceInterface $resource
+     *   Resource which the permission is initialized
+     * @param AclUser $user
+     *   User to initialized
+     */
+    private function initializePermissions(ResourceInterface $resource, AclUser $user): void
+    {
+        if($resource->getBehaviour() === ResourceInterface::WHITELIST) {
+            $user->setPermission($resource, 0);
+            return;
+        }
+        
+        $resource->grantRoot()->to($user);
     }
     
     /**
