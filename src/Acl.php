@@ -118,9 +118,7 @@ class Acl implements AclInterface
     {
         $bindable = null;
         $resourceInstance = $this->validateAndLoadResource($resource, $bindable);
-        $username = $user->getName();
-        $user = $this->loaded[$username] ?? ( $this->loaded[$username] = new AclUser($user, $this->normalizer) );
-        $this->handler->handle($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
+        $user = $this->initializeAclUser($user);
         $mask = $user->getPermission($resourceInstance);
         $required = $this->getPermission($resourceInstance, $resource, $permission);
         
@@ -130,11 +128,11 @@ class Acl implements AclInterface
         if(null === $mask) {
             $this->initializePermissions($resourceInstance, $user);
             if(null !== $lockResult = $this->executeProcessors($resourceInstance, $user, $required)) {
-                unset($this->loaded[$username]);
+                unset($this->loaded[$user->getName()]);
                 return $lockResult;
             }
             $mask = $user->getPermission($resourceInstance);
-            unset($this->loaded[$username]);
+            unset($this->loaded[$user->getName()]);
         }
         
         if(null === $bindable && null === $update)
@@ -159,6 +157,27 @@ class Acl implements AclInterface
     public function registerProcessor(ResourceProcessorInterface $processor): void
     {
         $this->processors[$processor->getIdentifier()] = $processor;
+    }
+    
+    /**
+     * Initialize an acl user from the given user, call the handler and memoize it for the acl lifetime
+     * 
+     * @param UserInterface $user
+     *   Base user which the acl one must be initialized
+     *   
+     * @return AclUser
+     *   Initialized acl user
+     */
+    private function initializeAclUser(UserInterface $user): AclUser
+    {
+        if(isset($this->loaded[$user->getName()]))
+            $user = $this->loaded[$user->getName()];
+        else {
+            $this->handler->handle($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
+            $user = $this->loaded[$user->getName()] = new AclUser($user, $this->normalizer);
+        }
+        
+        return $user;
     }
     
     /**

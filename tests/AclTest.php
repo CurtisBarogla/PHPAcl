@@ -45,17 +45,16 @@ class AclTest extends AclTestCase
      */
     public function testIsAllowedWhenUserNotLockedAndPermissionNotSettedWithProcessorsLocking(): void
     {
-        $user = new User("FooUser");
-        $user = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
+        $baseUser = new User("FooUser");
         $resource = new Resource("Resource");
         $resource->addPermission("foo")->addPermission("bar");
-        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer, MockObject $handler) use ($resource, $user): void {
+        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer, MockObject $handler) use ($resource, $baseUser): void {
             $resourceLoader
                 ->expects($this->once())
                 ->method("load")
                 ->with("Resource")
                 ->will($this->returnValue($resource));
-            $handler->expects($this->once())->method("handle")->with($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
+            $handler->expects($this->once())->method("handle")->with($baseUser, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
         };
         
         $processor = new class extends AbstractResourceProcessor {
@@ -85,11 +84,10 @@ class AclTest extends AclTestCase
         $processorBar->expects($this->never())->method("process");
 
         $acl = $this->getAcl($action);
-        $this->injectAclUser("FooUser", $user, $acl);
         $acl->registerProcessor($processor);
         $acl->registerProcessor($processorBar);
         
-        $this->assertFalse($acl->isAllowed($user, "Resource", "foo"));
+        $this->assertFalse($acl->isAllowed($baseUser, "Resource", "foo"));
     }
     
     /**
@@ -103,7 +101,7 @@ class AclTest extends AclTestCase
         $resource->expects($this->once())->method("getPermission")->with("foo")->will($this->returnValue(4));
         $resource->expects($this->once())->method("getBehaviour")->will($this->returnValue(ResourceInterface::WHITELIST));
         $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
-        $user->expects($this->once())->method("getName")->will($this->returnValue("FooUser"));
+        $user->expects($this->atLeastOnce())->method("getName")->will($this->returnValue("FooUser"));
         $user
             ->expects($this->exactly(3))
             ->method("isLocked")
@@ -122,7 +120,7 @@ class AclTest extends AclTestCase
                 ->method("load")
                 ->with("Resource")
                 ->will($this->returnValue($resource));
-            $handler->expects($this->once())->method("handle")->with($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
+            $handler->expects($this->never())->method("handle");
         };
         
         
@@ -154,7 +152,7 @@ class AclTest extends AclTestCase
         $resource->expects($this->once())->method("getBehaviour")->will($this->returnValue(ResourceInterface::BLACKLIST));
         
         $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
-        $user->expects($this->once())->method("getName")->will($this->returnValue("FooUser"));
+        $user->expects($this->atLeastOnce())->method("getName")->will($this->returnValue("FooUser"));
         $user
             ->expects($this->once())
             ->method("isLocked")
@@ -175,7 +173,7 @@ class AclTest extends AclTestCase
                 ->method("load")
                 ->with("ResourceBlacklist")
                 ->will($this->returnValue($resource));
-            $handler->expects($this->once())->method("handle")->with($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
+            $handler->expects($this->never())->method("handle");
         };
         
         $acl = $this->getAcl($action);
@@ -195,7 +193,7 @@ class AclTest extends AclTestCase
         
         $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         $user->expects($this->once())->method("setPermission")->with($resource, 0);
-        $user->expects($this->once())->method("getName")->will($this->returnValue("FooUser"));
+        $user->expects($this->atLeastOnce())->method("getName")->will($this->returnValue("FooUser"));
         $user
             ->expects($this->once())
             ->method("isLocked")
@@ -213,7 +211,7 @@ class AclTest extends AclTestCase
                 ->method("load")
                 ->with("ResourceWhitelist")
                 ->will($this->returnValue($resource));
-            $handler->expects($this->once())->method("handle")->with($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
+            $handler->expects($this->never())->method("handle");
         };
         
         $acl = $this->getAcl($action);
@@ -247,7 +245,7 @@ class AclTest extends AclTestCase
         $bindableMoz->expects($this->once())->method("getAclResourceName")->will($this->returnValue("MozResource"));
         $bindableMoz->expects($this->once())->method("updateAclPermission")->with($user, "foo", true)->will($this->returnValue(true));
         
-        $user->expects($this->exactly(3))->method("getName")->will($this->returnValue("FooUser"));
+        $user->expects($this->atLeastOnce())->method("getName")->will($this->returnValue("FooUser"));
         $user
             ->expects($this->exactly(3))
             ->method("isLocked")
@@ -265,7 +263,7 @@ class AclTest extends AclTestCase
                 ->method("load")
                 ->withConsecutive(["FooResource"], ["BarResource"], ["MozResource"])
                 ->will($this->onConsecutiveCalls($resourceFoo, $resourceBar, $resourceMoz));
-            $handler->expects($this->exactly(3))->method("handle")->with($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
+            $handler->expects($this->never())->method("handle");
         };
         
         $acl = $this->getAcl($action);
@@ -309,7 +307,7 @@ class AclTest extends AclTestCase
         $bindableMoz->expects($this->once())->method("getAclResourceName")->will($this->returnValue("MozResource"));
         $bindableMoz->expects($this->once())->method("updateAclPermission")->with($user, "foo", false)->will($this->returnValue(true));
         
-        $user->expects($this->exactly(3))->method("getName")->will($this->returnValue("FooUser"));
+        $user->expects($this->atLeastOnce())->method("getName")->will($this->returnValue("FooUser"));
         $user
             ->expects($this->exactly(3))
             ->method("isLocked")
@@ -327,7 +325,7 @@ class AclTest extends AclTestCase
                 ->method("load")
                 ->withConsecutive(["FooResource"], ["BarResource"], ["MozResource"])
                 ->will($this->onConsecutiveCalls($resourceFoo, $resourceBar, $resourceMoz));
-            $handler->expects($this->exactly(3))->method("handle")->with($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
+            $handler->expects($this->never())->method("handle");
         };
         
         $acl = $this->getAcl($action);
@@ -362,7 +360,7 @@ class AclTest extends AclTestCase
         $bindable->expects($this->once())->method("getAclResourceName")->will($this->returnValue("BarResource"));
         $bindable->expects($this->once())->method("updateAclPermission")->with($user, "foo", false)->will($this->returnValue(null));
         
-        $user->expects($this->exactly(2))->method("getName")->will($this->returnValue("FooUser"));
+        $user->expects($this->atLeastOnce())->method("getName")->will($this->returnValue("FooUser"));
         $user
             ->expects($this->exactly(2))
             ->method("isLocked")
@@ -380,7 +378,7 @@ class AclTest extends AclTestCase
                 ->method("load")
                 ->withConsecutive(["FooResource"], ["BarResource"])
                 ->will($this->onConsecutiveCalls($resourceFoo, $resourceBar));
-            $handler->expects($this->exactly(2))->method("handle")->with($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
+            $handler->expects($this->never())->method("handle");
         };
         
         $acl = $this->getAcl($action);
@@ -405,7 +403,7 @@ class AclTest extends AclTestCase
         $resourceBar->expects($this->once())->method("getPermission")->with("foo")->will($this->returnValue(1));
         
         $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
-        $user->expects($this->exactly(3))->method("getName")->will($this->returnValue("FooUser"));
+        $user->expects($this->atLeastOnce())->method("getName")->will($this->returnValue("FooUser"));
         $user
             ->expects($this->exactly(3))
             ->method("isLocked")
@@ -422,7 +420,7 @@ class AclTest extends AclTestCase
                 ->method("load")
                 ->withConsecutive(["FooResource"], ["BarResource"])
                 ->will($this->onConsecutiveCalls($resourceFoo, $resourceBar));
-            $handler->expects($this->exactly(3))->method("handle")->with($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
+            $handler->expects($this->never())->method("handle");
         };
         $acl = $this->getAcl($action);
         $this->injectAclUser("FooUser", $user, $acl);
