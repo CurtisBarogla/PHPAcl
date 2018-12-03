@@ -46,7 +46,7 @@ class CacheItemPoolWrapperResourceLoader implements ResourceLoaderInterface
      * 
      * @var string
      */
-    public const CACHE_KEY = "NESS_ACL_RESOURCE";
+    public const CACHE_KEY = "NESS_ACL_RESOURCE_";
     
     /**
      * Use to identify cached resources through a pool supporting tags
@@ -75,8 +75,7 @@ class CacheItemPoolWrapperResourceLoader implements ResourceLoaderInterface
      */
     public function load(string $resource): ResourceInterface
     {
-        $key = self::CACHE_KEY."_{$resource}";
-        
+        $key = self::CACHE_KEY. \sha1($resource);
         if( !($item = $this->pool->getItem($key))->isHit() ) {
             $resource = $this->loader->load($resource);
             $item->set($resource);

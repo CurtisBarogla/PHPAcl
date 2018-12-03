@@ -50,8 +50,10 @@ class CacheItemPoolWrapperResourceLoaderTest extends AclTestCase
         $item->expects($this->once())->method("get")->will($this->returnValue($resource));
         $item->expects($this->exactly(2))->method("isHit")->will($this->onConsecutiveCalls(false, true));
         
+        $name = \sha1("FooResource");
+        
         $pool = $this->getMockBuilder(CacheItemPoolInterface::class)->getMock();
-        $pool->expects($this->exactly(2))->method("getItem")->with(CacheItemPoolWrapperResourceLoader::CACHE_KEY."_FooResource")->will($this->returnValue($item));
+        $pool->expects($this->exactly(2))->method("getItem")->with(CacheItemPoolWrapperResourceLoader::CACHE_KEY.$name)->will($this->returnValue($item));
         $pool->expects($this->once())->method("saveDeferred")->with($item);
         
         $loader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
@@ -72,8 +74,10 @@ class CacheItemPoolWrapperResourceLoaderTest extends AclTestCase
         $item->expects($this->exactly(2))->method("isHit")->will($this->onConsecutiveCalls(false, true));
         $item->expects($this->once())->method("setTags")->with([CacheItemPoolWrapperResourceLoader::CACHE_TAG]);
         
+        $name = \sha1("FooResource");
+        
         $pool = $this->getMockBuilder(TaggableCacheItemPoolInterface::class)->getMock();
-        $pool->expects($this->exactly(2))->method("getItem")->with(CacheItemPoolWrapperResourceLoader::CACHE_KEY."_FooResource")->will($this->returnValue($item));
+        $pool->expects($this->exactly(2))->method("getItem")->with(CacheItemPoolWrapperResourceLoader::CACHE_KEY.$name)->will($this->returnValue($item));
         $pool->expects($this->once())->method("saveDeferred")->with($item);
         
         $loader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();

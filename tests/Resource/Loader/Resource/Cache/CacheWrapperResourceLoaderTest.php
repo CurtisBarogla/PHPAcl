@@ -46,9 +46,11 @@ class CacheWrapperResourceLoaderTest extends AclTestCase
     {
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         
+        $name = \sha1("FooResource");
+        
         $cache = $this->getMockBuilder(CacheInterface::class)->getMock();
-        $cache->expects($this->exactly(2))->method("get")->withConsecutive([CacheWrapperResourceLoader::CACHE_KEY."_FooResource"])->will($this->onConsecutiveCalls($resource, null));
-        $cache->expects($this->once())->method("set")->with(CacheWrapperResourceLoader::CACHE_KEY."_FooResource", $resource);
+        $cache->expects($this->exactly(2))->method("get")->withConsecutive([CacheWrapperResourceLoader::CACHE_KEY.$name])->will($this->onConsecutiveCalls($resource, null));
+        $cache->expects($this->once())->method("set")->with(CacheWrapperResourceLoader::CACHE_KEY.$name, $resource);
         
         $loader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
         $loader->expects($this->once())->method("load")->with("FooResource")->will($this->returnValue($resource));

@@ -44,7 +44,7 @@ class CacheWrapperResourceLoader implements ResourceLoaderInterface
      * 
      * @var string
      */
-    public const CACHE_KEY = "NESS_ACL_RESOURCE";
+    public const CACHE_KEY = "NESS_ACL_RESOURCE_";
     
     /**
      * Initialize loader
@@ -66,7 +66,7 @@ class CacheWrapperResourceLoader implements ResourceLoaderInterface
      */
     public function load(string $resource): ResourceInterface
     {
-        $key = self::CACHE_KEY."_{$resource}";
+        $key = self::CACHE_KEY . \sha1($resource);
         if(null === $cached = $this->cache->get($key, null)) {
             $resource = $this->loader->load($resource);
             
