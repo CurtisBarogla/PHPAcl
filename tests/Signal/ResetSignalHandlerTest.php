@@ -56,10 +56,10 @@ class ResetSignalHandlerTest extends AclTestCase
         
         $store = $this->getMockBuilder(ResetSignalStoreInterface::class)->getMock();
         $store
-            ->expects($this->exactly(3))
+            ->expects($this->exactly(4))
             ->method("has")
             ->with("ness_reset_signal".\sha1("Foo"))
-            ->will($this->onConsecutiveCalls(true, false, true));
+            ->will($this->onConsecutiveCalls(true, false, true, false));
         $store
             ->expects($this->exactly(2))
             ->method("remove")

@@ -26,13 +26,6 @@ class ResetSignalHandler implements ResetSignalHandlerInterface
 {
     
     /**
-     * User already handled
-     * 
-     * @var string[]
-     */
-    private $handled;
-    
-    /**
      * Signal store
      * 
      * @var ResetSignalStoreInterface
@@ -73,7 +66,7 @@ class ResetSignalHandler implements ResetSignalHandlerInterface
      */
     public function handle(UserInterface $user, string $attribute): void
     {
-        if(isset($this->handled[$user->getName()]) || !$this->store->has( ($identifier = self::PREFIX.\sha1($user->getName()) )))
+        if(!$this->store->has( ($identifier = self::PREFIX.\sha1($user->getName()) )))
             return;
         
         $user->deleteAttribute($attribute);
