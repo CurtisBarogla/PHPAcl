@@ -19,6 +19,7 @@ use Ness\Component\Acl\Resource\Processor\ResourceProcessorInterface;
 use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\User\AclUser;
 use Ness\Component\Acl\Normalizer\LockPatternNormalizerInterface;
+use Ness\Component\Acl\Signal\ResetSignalHandlerInterface;
 
 /**
  * Native implementation using acl components
@@ -49,6 +50,13 @@ class Acl implements AclInterface
      * @var LockPatternNormalizerInterface
      */
     private $normalizer;
+    
+    /**
+     * Reset signal handler
+     * 
+     * @var ResetSignalHandlerInterface
+     */
+    private $handler;
     
     /**
      * Processor executes when acl mades it decision
@@ -87,12 +95,19 @@ class Acl implements AclInterface
      *   Entry loader
      * @param LockPatternNormalizerInterface
      *   Lock pattern resource name normalizer
+     * @param ResetSignalHandlerInterface $handler
+     *   Reset signal handler
      */
-    public function __construct(ResourceLoaderInterface $resourceLoader, EntryLoaderInterface $entryLoader, LockPatternNormalizerInterface $normalizer)
+    public function __construct(
+        ResourceLoaderInterface $resourceLoader, 
+        EntryLoaderInterface $entryLoader, 
+        LockPatternNormalizerInterface $normalizer,
+        ResetSignalHandlerInterface $handler)
     {
         $this->resourceLoader = $resourceLoader;
         $this->entryLoader = $entryLoader;
         $this->normalizer = $normalizer;
+        $this->handler = $handler;
     }
     
     /**
@@ -105,6 +120,7 @@ class Acl implements AclInterface
         $resourceInstance = $this->validateAndLoadResource($resource, $bindable);
         $username = $user->getName();
         $user = $this->loaded[$username] ?? ( $this->loaded[$username] = new AclUser($user, $this->normalizer) );
+        $this->handler->handle($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
         $mask = $user->getPermission($resourceInstance);
         $required = $this->getPermission($resourceInstance, $resource, $permission);
         

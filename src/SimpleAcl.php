@@ -19,6 +19,7 @@ use Ness\Component\Acl\Exception\PermissionNotFoundException;
 use Ness\Component\Acl\Exception\EntryNotFoundException;
 use Psr\SimpleCache\CacheInterface;
 use Ness\Component\Acl\Normalizer\LockPatternNormalizerInterface;
+use Ness\Component\Acl\Signal\ResetSignalHandlerInterface;
 
 /**
  * A simple acl for those who does not like my other implementation
@@ -92,6 +93,13 @@ final class SimpleAcl implements AclInterface
      * @var \Closure[]
      */
     private $processors = [];
+    
+    /**
+     * Reset signal handler
+     * 
+     * @var ResetSignalHandlerInterface
+     */
+    private $handler;
     
     /**
      * Resource name index
@@ -184,15 +192,21 @@ final class SimpleAcl implements AclInterface
      * 
      * @param LockPatternNormalizerInterface $normalizer
      *   Lock pattern resource name normalizer
+     * @param ResetSignalHandlerInterface
+     *   Reset signal handler
      * @param int $behaviour
      *   Acl behaviour. By default WHITELIST
      * 
      * @throws InvalidArgumentException
      *   When given behaviour is invalid
      */
-    public function __construct(LockPatternNormalizerInterface $normalizer, int $behaviour = self::WHITELIST)
+    public function __construct(
+        LockPatternNormalizerInterface $normalizer, 
+        ResetSignalHandlerInterface $handler, 
+        int $behaviour = self::WHITELIST)
     {
         $this->normalizer = $normalizer;
+        $this->handler = $handler;
         $this->assignBehaviour($behaviour);
     }
     
@@ -214,6 +228,7 @@ final class SimpleAcl implements AclInterface
         $locked = false;
         $initialized = true;
         $mask = null;
+        $this->handler->handle($user, self::ACL_USER_ATTRIBUTE);
         $this->initializeUser($user, $resource, $attribute, $initialized, $locked, $mask);
         
         if($locked || !$initialized && null === $update && null === $bindable)

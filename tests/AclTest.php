@@ -27,6 +27,7 @@ use Ness\Component\Acl\Resource\Processor\AbstractResourceProcessor;
 use Ness\Component\User\User;
 use Ness\Component\Acl\User\AclUser;
 use Ness\Component\Acl\Normalizer\LockPatternNormalizerInterface;
+use Ness\Component\Acl\Signal\ResetSignalHandlerInterface;
 
 /**
  * Acl testcase
@@ -48,12 +49,13 @@ class AclTest extends AclTestCase
         $user = new AclUser($user, $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock());
         $resource = new Resource("Resource");
         $resource->addPermission("foo")->addPermission("bar");
-        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer) use ($resource): void {
+        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer, MockObject $handler) use ($resource, $user): void {
             $resourceLoader
                 ->expects($this->once())
                 ->method("load")
                 ->with("Resource")
                 ->will($this->returnValue($resource));
+            $handler->expects($this->once())->method("handle")->with($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
         };
         
         $processor = new class extends AbstractResourceProcessor {
@@ -100,16 +102,6 @@ class AclTest extends AclTestCase
         $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
         $resource->expects($this->once())->method("getPermission")->with("foo")->will($this->returnValue(4));
         $resource->expects($this->once())->method("getBehaviour")->will($this->returnValue(ResourceInterface::WHITELIST));
-        
-        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer) use ($resource, &$loaderReference): void {
-            $loaderReference = $entryLoader;
-            $resourceLoader
-                ->expects($this->once())
-                ->method("load")
-                ->with("Resource")
-                ->will($this->returnValue($resource));
-        };
-        
         $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         $user->expects($this->once())->method("getName")->will($this->returnValue("FooUser"));
         $user
@@ -122,6 +114,17 @@ class AclTest extends AclTestCase
             ->method("getPermission")
             ->withConsecutive([$resource])
             ->will($this->onConsecutiveCalls(null, 0));
+        
+        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer, MockObject $handler) use ($resource, &$loaderReference, $user): void {
+            $loaderReference = $entryLoader;
+            $resourceLoader
+                ->expects($this->once())
+                ->method("load")
+                ->with("Resource")
+                ->will($this->returnValue($resource));
+            $handler->expects($this->once())->method("handle")->with($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
+        };
+        
         
         $acl = $this->getAcl($action);
         
@@ -166,12 +169,13 @@ class AclTest extends AclTestCase
         $resource->expects($this->once())->method("grantRoot")->will($this->returnValue($resource));
         $resource->expects($this->once())->method("to")->with($user);
         
-        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer) use ($resource): void {
+        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer, MockObject $handler) use ($resource, $user): void {
             $resourceLoader
                 ->expects($this->once())
                 ->method("load")
                 ->with("ResourceBlacklist")
                 ->will($this->returnValue($resource));
+            $handler->expects($this->once())->method("handle")->with($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
         };
         
         $acl = $this->getAcl($action);
@@ -203,12 +207,13 @@ class AclTest extends AclTestCase
             ->withConsecutive([$resource])
             ->will($this->onConsecutiveCalls(null, 0));
         
-        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer) use ($resource): void {
+        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer, MockObject $handler) use ($resource, $user): void {
             $resourceLoader
                 ->expects($this->once())
                 ->method("load")
                 ->with("ResourceWhitelist")
                 ->will($this->returnValue($resource));
+            $handler->expects($this->once())->method("handle")->with($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
         };
         
         $acl = $this->getAcl($action);
@@ -254,12 +259,13 @@ class AclTest extends AclTestCase
             ->withConsecutive([$resourceFoo], [$resourceBar], [$resourceMoz])
             ->will($this->onConsecutiveCalls(15, 0, 15));
         
-        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer) use ($resourceFoo, $resourceBar, $resourceMoz): void {
+        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer, MockObject $handler) use ($resourceFoo, $resourceBar, $resourceMoz, $user): void {
             $resourceLoader
                 ->expects($this->exactly(3))
                 ->method("load")
                 ->withConsecutive(["FooResource"], ["BarResource"], ["MozResource"])
                 ->will($this->onConsecutiveCalls($resourceFoo, $resourceBar, $resourceMoz));
+            $handler->expects($this->exactly(3))->method("handle")->with($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
         };
         
         $acl = $this->getAcl($action);
@@ -315,12 +321,13 @@ class AclTest extends AclTestCase
             ->withConsecutive([$resourceFoo], [$resourceBar], [$resourceMoz])
             ->will($this->onConsecutiveCalls(0, 0, 0));
         
-        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer) use ($resourceFoo, $resourceBar, $resourceMoz): void {
+        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer, MockObject $handler) use ($resourceFoo, $resourceBar, $resourceMoz, $user): void {
             $resourceLoader
                 ->expects($this->exactly(3))
                 ->method("load")
                 ->withConsecutive(["FooResource"], ["BarResource"], ["MozResource"])
                 ->will($this->onConsecutiveCalls($resourceFoo, $resourceBar, $resourceMoz));
+            $handler->expects($this->exactly(3))->method("handle")->with($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
         };
         
         $acl = $this->getAcl($action);
@@ -367,12 +374,13 @@ class AclTest extends AclTestCase
             ->withConsecutive([$resourceFoo], [$resourceBar])
             ->will($this->onConsecutiveCalls(3, 0));
         
-        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer) use ($resourceFoo, $resourceBar): void {
+        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer, MockObject $handler) use ($resourceFoo, $resourceBar, $user): void {
             $resourceLoader
                 ->expects($this->exactly(2))
                 ->method("load")
                 ->withConsecutive(["FooResource"], ["BarResource"])
                 ->will($this->onConsecutiveCalls($resourceFoo, $resourceBar));
+            $handler->expects($this->exactly(2))->method("handle")->with($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
         };
         
         $acl = $this->getAcl($action);
@@ -408,12 +416,13 @@ class AclTest extends AclTestCase
             ->method("getPermission")
             ->withConsecutive([$resourceFoo], [$resourceFoo], [$resourceBar])
             ->will($this->onConsecutiveCalls(3, 0, 2));
-        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer) use ($resourceFoo, $resourceBar): void {
+        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer, MockObject $handler) use ($resourceFoo, $resourceBar, $user): void {
             $resourceLoader
                 ->expects($this->exactly(2))
                 ->method("load")
                 ->withConsecutive(["FooResource"], ["BarResource"])
                 ->will($this->onConsecutiveCalls($resourceFoo, $resourceBar));
+            $handler->expects($this->exactly(3))->method("handle")->with($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
         };
         $acl = $this->getAcl($action);
         $this->injectAclUser("FooUser", $user, $acl);
@@ -459,7 +468,7 @@ class AclTest extends AclTestCase
     {
         $this->expectException(ResourceNotFoundException::class);
         
-        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer): void {
+        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer, MockObject $handler): void {
             $resourceLoader->expects($this->once())->method("load")->with("FooResource")->will($this->throwException(new ResourceNotFoundException()));   
         };
         
@@ -475,7 +484,7 @@ class AclTest extends AclTestCase
     {
         $this->expectException(PermissionNotFoundException::class);
         
-        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer): void {
+        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer, MockObject $handler): void {
             $resource = $this->getMockBuilder(ResourceInterface::class)->getMock();
             $resource->expects($this->once())->method("getPermission")->with("foo")->will($this->throwException(new PermissionNotFoundException()));
             $resourceLoader->expects($this->once())->method("load")->with("FooResource")->will($this->returnValue($resource));
@@ -500,11 +509,12 @@ class AclTest extends AclTestCase
         $resourceLoader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
         $entryLoader = $this->getMockBuilder(EntryLoaderInterface::class)->getMock();
         $normalizer = $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock();
+        $handler = $this->getMockBuilder(ResetSignalHandlerInterface::class)->getMock();
         
         if(null !== $actions)
-            $actions->call($this, $resourceLoader, $entryLoader, $normalizer);
+            $actions->call($this, $resourceLoader, $entryLoader, $normalizer, $handler);
         
-        return new Acl($resourceLoader, $entryLoader, $normalizer);
+        return new Acl($resourceLoader, $entryLoader, $normalizer, $handler);
     }
     
     /**
