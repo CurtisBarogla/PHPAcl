@@ -232,17 +232,17 @@ class AclTest extends AclTestCase
         $resourceBar->expects($this->once())->method("getPermission")->with("foo")->will($this->returnValue(2));
         $resourceBar->expects($this->once())->method("getBehaviour")->will($this->returnValue(ResourceInterface::BLACKLIST));
         $resourceMoz = $this->getMockBuilder(ResourceInterface::class)->getMock();
-        $resourceMoz->expects($this->once())->method("getPermission")->with("foo")->will($this->returnValue(2));
+        $resourceMoz->expects($this->never())->method("getPermission")->with("foo")->will($this->returnValue(2));
         $resourceMoz->expects($this->once())->method("getBehaviour")->will($this->returnValue(ResourceInterface::BLACKLIST));
         
         $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         
         $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
-        $bindable->expects($this->once())->method("getAclResourceName")->will($this->returnValue("BarResource"));
+        $bindable->expects($this->once())->method("getAclResourceHierarchy")->will($this->returnValue(["BarResource"]));
         $bindable->expects($this->never())->method("updateAclPermission");
         
         $bindableMoz = $this->getMockBuilder(AclBindableInterface::class)->getMock();
-        $bindableMoz->expects($this->once())->method("getAclResourceName")->will($this->returnValue("MozResource"));
+        $bindableMoz->expects($this->once())->method("getAclResourceHierarchy")->will($this->returnValue(["MozResource"]));
         $bindableMoz->expects($this->once())->method("updateAclPermission")->with($user, "foo", true)->will($this->returnValue(true));
         
         $user->expects($this->atLeastOnce())->method("getName")->will($this->returnValue("FooUser"));
@@ -294,37 +294,37 @@ class AclTest extends AclTestCase
         $resourceBar->expects($this->once())->method("getPermission")->with("foo")->will($this->returnValue(2));
         $resourceBar->expects($this->once())->method("getBehaviour")->will($this->returnValue(ResourceInterface::WHITELIST));
         $resourceMoz = $this->getMockBuilder(ResourceInterface::class)->getMock();
-        $resourceMoz->expects($this->once())->method("getPermission")->with("foo")->will($this->returnValue(2));
-        $resourceMoz->expects($this->once())->method("getBehaviour")->will($this->returnValue(ResourceInterface::WHITELIST));
+        $resourceMoz->expects($this->never())->method("getPermission")->with("foo")->will($this->returnValue(2));
+        $resourceMoz->expects($this->exactly(2))->method("getBehaviour")->will($this->returnValue(ResourceInterface::WHITELIST));
         
         $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         
         $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
-        $bindable->expects($this->once())->method("getAclResourceName")->will($this->returnValue("BarResource"));
+        $bindable->expects($this->once())->method("getAclResourceHierarchy")->will($this->returnValue(["NotFoundable", "BarResource"]));
         $bindable->expects($this->never())->method("updateAclPermission");
         
         $bindableMoz = $this->getMockBuilder(AclBindableInterface::class)->getMock();
-        $bindableMoz->expects($this->once())->method("getAclResourceName")->will($this->returnValue("MozResource"));
-        $bindableMoz->expects($this->once())->method("updateAclPermission")->with($user, "foo", false)->will($this->returnValue(true));
+        $bindableMoz->expects($this->exactly(2))->method("getAclResourceHierarchy")->will($this->returnValue(["MozResource"]));
+        $bindableMoz->expects($this->exactly(2))->method("updateAclPermission")->with($user, "foo", false)->will($this->returnValue(true));
         
         $user->expects($this->atLeastOnce())->method("getName")->will($this->returnValue("FooUser"));
         $user
-            ->expects($this->exactly(3))
+            ->expects($this->exactly(4))
             ->method("isLocked")
             ->withConsecutive([$resourceFoo], [$resourceBar], [$resourceMoz])
-            ->will($this->returnValue(false, false, false));
+            ->will($this->returnValue(false, false, false, false));
         $user
-            ->expects($this->exactly(3))
+            ->expects($this->exactly(4))
             ->method("getPermission")
             ->withConsecutive([$resourceFoo], [$resourceBar], [$resourceMoz])
-            ->will($this->onConsecutiveCalls(0, 0, 0));
+            ->will($this->onConsecutiveCalls(0, 0, 0, 0));
         
         $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer, MockObject $handler) use ($resourceFoo, $resourceBar, $resourceMoz, $user): void {
             $resourceLoader
-                ->expects($this->exactly(3))
+                ->expects($this->exactly(4))
                 ->method("load")
-                ->withConsecutive(["FooResource"], ["BarResource"], ["MozResource"])
-                ->will($this->onConsecutiveCalls($resourceFoo, $resourceBar, $resourceMoz));
+                ->withConsecutive(["FooResource"], ["NotFoundable"], ["BarResource"], ["MozResource"])
+                ->will($this->onConsecutiveCalls($resourceFoo, $this->throwException(new ResourceNotFoundException()), $resourceBar, $resourceMoz));
             $handler->expects($this->never())->method("handle");
         };
         
@@ -337,6 +337,10 @@ class AclTest extends AclTestCase
         $this->assertFalse($acl->isAllowed($user, $bindable, "foo", function(UserInterface $user, AclBindableInterface $resource) use ($bindable): ?bool {
             $this->assertSame($bindable, $resource);
             return false;
+        }));
+        $this->assertTrue($acl->isAllowed($user, $bindableMoz, "foo", function(UserInterface $user, AclBindableInterface $resource) use ($bindableMoz): ?bool {
+            $this->assertSame($bindableMoz, $resource);
+            return null;
         }));
         $this->assertTrue($acl->isAllowed($user, $bindableMoz, "foo", function(UserInterface $user, AclBindableInterface $resource) use ($bindableMoz): ?bool {
             $this->assertSame($bindableMoz, $resource);
@@ -357,7 +361,7 @@ class AclTest extends AclTestCase
         $user = $this->getMockBuilder(AclUser::class)->disableOriginalConstructor()->getMock();
         
         $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
-        $bindable->expects($this->once())->method("getAclResourceName")->will($this->returnValue("BarResource"));
+        $bindable->expects($this->once())->method("getAclResourceHierarchy")->will($this->returnValue(["BarResource"]));
         $bindable->expects($this->once())->method("updateAclPermission")->with($user, "foo", false)->will($this->returnValue(null));
         
         $user->expects($this->atLeastOnce())->method("getName")->will($this->returnValue("FooUser"));
@@ -395,7 +399,7 @@ class AclTest extends AclTestCase
     {
         $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
         $bindable->expects($this->never())->method("updateAclPermission");
-        $bindable->expects($this->once())->method("getAclResourceName")->will($this->returnValue("BarResource"));
+        $bindable->expects($this->once())->method("getAclResourceHierarchy")->will($this->returnValue(["BarResource"]));
         
         $resourceFoo = $this->getMockBuilder(ResourceInterface::class)->getMock();   
         $resourceFoo->expects($this->once())->method("getPermission")->with("foo")->will($this->returnValue(1));
@@ -491,6 +495,52 @@ class AclTest extends AclTestCase
         $acl = $this->getAcl($action);
         
         $acl->isAllowed($this->getMockBuilder(UserInterface::class)->getMock(), "FooResource", "foo");
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\Acl::handleBindableResource()
+     */
+    public function testExceptionHandleBindableResourceWhenADeclaredResourceIsNotAString(): void
+    {
+        $this->expectException(\TypeError::class);
+        $this->expectExceptionMessage("Resource hierarchy MUST contains only string referring resource name. 'array' given");
+        
+        $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
+        $bindable->expects($this->once())->method("getAclResourceHierarchy")->will($this->returnValue([ [] ]));
+        
+        $acl = $this->getAcl();
+        $reflection = new \ReflectionClass($acl);
+        $method = $reflection->getMethod("handleBindableResource");
+        $method->setAccessible(true);
+        
+        $method->invoke($acl, $bindable);
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\Acl::handleBindableResource()
+     */
+    public function testExceptionHandleBindableResourceWhenNoResourceFound(): void
+    {
+        $this->expectException(ResourceNotFoundException::class);
+        $this->expectExceptionMessage("No loadable resource found into declared hierarchy 'FooResource, BarResource'");
+        
+        $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
+        $bindable->expects($this->once())->method("getAclResourceHierarchy")->will($this->returnValue(["FooResource", "BarResource"]));
+        
+        $action = function(MockObject $resourceLoader, MockObject $entryLoader, MockObject $normalizer, MockObject $handler): void {
+            $resourceLoader
+                ->expects($this->exactly(2))
+                ->method("load")
+                ->withConsecutive(["FooResource"], ["BarResource"])
+                ->will($this->throwException(new ResourceNotFoundException()));
+        };
+        
+        $acl = $this->getAcl($action);
+        $reflection = new \ReflectionClass($acl);
+        $method = $reflection->getMethod("handleBindableResource");
+        $method->setAccessible(true);
+        
+        $method->invoke($acl, $bindable);
     }
     
     /**

@@ -39,6 +39,13 @@ final class SimpleAcl implements AclInterface
     private $currentResource = null;
     
     /**
+     * Reference to already loaded acl bindable hierarchy resources
+     * 
+     * @var string[]
+     */
+    private $hierarchyMap = null;
+    
+    /**
      * Reference for registering further entries into a processor
      * 
      * @var string|null
@@ -585,7 +592,9 @@ final class SimpleAcl implements AclInterface
     {
         if($resource instanceof AclBindableInterface) {
             $bindable = $resource;            
-            $resource = $resource->getAclResourceName();
+            $resource = $this->handleBindable($bindable);
+            
+            return;
         }
         
         if(!isset($this->resourceValidated[$resource])) {
@@ -600,6 +609,40 @@ final class SimpleAcl implements AclInterface
         }
         
         $resource = $this->acl[$resource];
+    }
+    
+    /**
+     * Handle hierarchy declared into the acl bindable component
+     * 
+     * @param AclBindableInterface $resource
+     *   Acl bindable component
+     *   
+     * @return array
+     *   Reference to the neareast loadable resource
+     * 
+     * @throws ResourceNotFoundException
+     *   When no resource found into the acl for the given hierarchy
+     */
+    private function handleBindable(AclBindableInterface $resource): array
+    {
+        $hierarchy = $resource->getAclResourceHierarchy();
+        if(isset($this->hierarchyMap[$hierarchy[0]]))
+            return $this->acl[$this->hierarchyMap[$hierarchy[0]]];
+
+        foreach ($hierarchy as $resource) {
+            if(!\is_string($resource)) {
+                throw new \TypeError(\sprintf("Resource hierarchy MUST contains only string referring resource name. '%s' given",
+                    (\is_object($resource) ? \get_class($resource) : \gettype($resource))));
+            }
+            if(isset($this->acl[$resource])) {
+                $this->hierarchyMap[$hierarchy[0]] = $resource;
+                
+                return $this->acl[$resource];
+            }
+        }
+        
+        throw new ResourceNotFoundException(\sprintf("No loadable resource found into declared hierarchy '%s'",
+            \implode(", ", $hierarchy)));
     }
     
     /**

@@ -20,6 +20,7 @@ use Ness\Component\Acl\Resource\ResourceInterface;
 use Ness\Component\Acl\User\AclUser;
 use Ness\Component\Acl\Normalizer\LockPatternNormalizerInterface;
 use Ness\Component\Acl\Signal\ResetSignalHandlerInterface;
+use Ness\Component\Acl\Exception\ResourceNotFoundException;
 
 /**
  * Native implementation using acl components
@@ -71,6 +72,13 @@ class Acl implements AclInterface
      * @var ResourceInterface[]
      */
     private $resources;
+    
+    /**
+     * Hierarchical resources already mapped
+     * 
+     * @var string[]
+     */
+    private $hierarchyMap;
     
     /**
      * Already fetched permissions
@@ -297,12 +305,17 @@ class Acl implements AclInterface
      * 
      * @throws \TypeError
      *   If the given resource is not a string not an AclBindableInterface component
+     * @throws ResourceNotFoundException
+     *   When the resource cannot be loaded
      */
     private function validateAndLoadResource(&$resource, ?AclBindableInterface& $bindable): ResourceInterface
     {
         if($resource instanceof AclBindableInterface) {
             $bindable = $resource;
-            $resource = $resource->getAclResourceName();
+            $instance = $this->handleBindableResource($bindable);
+            $resource = $instance->getName();
+            
+            return $instance;
         }
         
         if(!\is_string($resource)) {
@@ -318,6 +331,48 @@ class Acl implements AclInterface
         $this->resources[$resource] = $instance;
         
         return $instance;
+    }
+    
+    /**
+     * Handle a hierarchy declared into an AclBindable component
+     * 
+     * @param AclBindableInterface $resource
+     *   Acl bindable resource
+     *  
+     * @return ResourceInterface
+     *   The nearest resource for the declared resource
+     *   
+     * @throws ResourceNotFoundException
+     *   When no resource loadable for the given hierarchy
+     * @throws \TypeError
+     *   When a given resource into the hierarchy is not a string
+     */
+    private function handleBindableResource(AclBindableInterface $resource): ResourceInterface
+    {
+        $hierarchy = $resource->getAclResourceHierarchy();
+        if(isset($this->resources[$hierarchy[0]]) || isset($this->hierarchyMap[$hierarchy[0]]))
+            return $this->resources[$hierarchy[0]] ?? $this->resources[$this->hierarchyMap[$hierarchy[0]]];
+
+        $looped = false;
+        foreach ($hierarchy as $resource) {
+            try {
+                if(!\is_string($resource)) {
+                    throw new \TypeError(\sprintf("Resource hierarchy MUST contains only string referring resource name. '%s' given",
+                        (\is_object($resource) ? \get_class($resource) : \gettype($resource))));
+                }
+                $instance = $this->resourceLoader->load($resource);
+                if($looped)
+                    $this->hierarchyMap[$hierarchy[0]] = $resource;
+                
+                return $this->resources[$resource] = $instance;
+            } catch (ResourceNotFoundException $e) {
+                $looped = true;
+                continue;
+            }
+        }
+
+        throw new ResourceNotFoundException(\sprintf("No loadable resource found into declared hierarchy '%s'",
+            \implode(", ", $hierarchy)));
     }
 
 }

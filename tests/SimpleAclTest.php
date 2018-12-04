@@ -56,7 +56,7 @@ class SimpleAclTest extends TestCase
             ->will($this->onConsecutiveCalls("::FooResource::", "::FooResource::", "::FooResource::", "::BarResource::", "::BarResource::"));
            
         $barResource = $this->getMockBuilder(AclBindableInterface::class)->getMock();
-        $barResource->expects($this->exactly(2))->method("getAclResourceName")->will($this->returnValue("BarResource"));
+        $barResource->expects($this->exactly(2))->method("getAclResourceHierarchy")->will($this->returnValue(["BarResource"]));
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
         $user
             ->expects($this->exactly(5))
@@ -131,7 +131,7 @@ class SimpleAclTest extends TestCase
             ->withConsecutive(["FooResource"], ["FooResource"], ["BarResource"], ["BarResource"], ["MozResource"], ["MozResource"])
             ->will($this->onConsecutiveCalls("::FooResource::", "::FooResource::", "::BarResource::", "::BarResource::", "::MozResource::", "::MozResource::"));
         $barResource = $this->getMockBuilder(AclBindableInterface::class)->getMock();
-        $barResource->expects($this->once())->method("getAclResourceName")->will($this->returnValue("BarResource"));
+        $barResource->expects($this->once())->method("getAclResourceHierarchy")->will($this->returnValue(["NotFoundResource", "BarResource"]));
         $barResource->expects($this->never())->method("updateAclPermission");
         
         $user = $this->getMockBuilder(UserInterface::class)->getMock();
@@ -185,7 +185,7 @@ class SimpleAclTest extends TestCase
         $user->expects($this->exactly(5))->method("getAttribute")->with(SimpleAcl::ACL_USER_ATTRIBUTE)->will($this->returnValue(["FooResource" => 7]));
         
         $resource = $this->getMockBuilder(AclBindableInterface::class)->getMock();
-        $resource->expects($this->exactly(5))->method("getAclResourceName")->will($this->returnValue("FooResource"));
+        $resource->expects($this->exactly(5))->method("getAclResourceHierarchy")->will($this->returnValue(["NotFoundResource", "FooResource"]));
         $resource->expects($this->exactly(4))->method("updateAclPermission")->withConsecutive([$user, "foo", true])->will($this->onConsecutiveCalls(null, true, false, true));
         
         $handler = $this->getMockBuilder(ResetSignalHandlerInterface::class)->getMock();
@@ -217,7 +217,7 @@ class SimpleAclTest extends TestCase
         $user->expects($this->exactly(5))->method("getAttribute")->with(SimpleAcl::ACL_USER_ATTRIBUTE)->will($this->returnValue(["FooResource" => 0]));
         
         $resource = $this->getMockBuilder(AclBindableInterface::class)->getMock();
-        $resource->expects($this->exactly(5))->method("getAclResourceName")->will($this->returnValue("FooResource"));
+        $resource->expects($this->exactly(5))->method("getAclResourceHierarchy")->will($this->returnValue(["NotFoundResource", "FooResource"]));
         $resource->expects($this->exactly(4))->method("updateAclPermission")->withConsecutive([$user, "foo", false])->will($this->onConsecutiveCalls(null, true, false, true));
         
         $handler = $this->getMockBuilder(ResetSignalHandlerInterface::class)->getMock();
@@ -899,6 +899,48 @@ class SimpleAclTest extends TestCase
         $acl = new SimpleAcl($this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock(), $handler);
         $acl->addResource("FooResource")->endResource();
         $acl->addResource("BarResource", "FooResource")->addEntry("FooEntry", ["foo"]);
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::handleBindable()
+     */
+    public function testExceptionHandleBindableWhenNoResourceLoadable(): void
+    {
+        $this->expectException(ResourceNotFoundException::class);
+        $this->expectExceptionMessage("No loadable resource found into declared hierarchy 'FooResource, BarResource'");
+        
+        $normalizer = $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock();
+        $handler = $this->getMockBuilder(ResetSignalHandlerInterface::class)->getMock();
+        $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
+        $bindable->expects($this->once())->method("getAclResourceHierarchy")->will($this->returnValue(["FooResource", "BarResource"]));
+        
+        $acl = new SimpleAcl($normalizer, $handler);
+        $reflection = new \ReflectionClass($acl);
+        $method = $reflection->getMethod("handleBindable");
+        $method->setAccessible(true);
+        
+        $method->invoke($acl, $bindable);
+    }
+    
+    /**
+     * @see \Ness\Component\Acl\SimpleAcl::handleBindable()
+     */
+    public function testExceptionHandleBindableWhenAGivenResourceIsNotAString(): void
+    {
+        $this->expectException(\TypeError::class);
+        $this->expectExceptionMessage("Resource hierarchy MUST contains only string referring resource name. 'array' given");
+        
+        $normalizer = $this->getMockBuilder(LockPatternNormalizerInterface::class)->getMock();
+        $handler = $this->getMockBuilder(ResetSignalHandlerInterface::class)->getMock();
+        $bindable = $this->getMockBuilder(AclBindableInterface::class)->getMock();
+        $bindable->expects($this->once())->method("getAclResourceHierarchy")->will($this->returnValue([[], "BarResource"]));
+        
+        $acl = new SimpleAcl($normalizer, $handler);
+        $reflection = new \ReflectionClass($acl);
+        $method = $reflection->getMethod("handleBindable");
+        $method->setAccessible(true);
+        
+        $method->invoke($acl, $bindable);
     }
     
     /**
