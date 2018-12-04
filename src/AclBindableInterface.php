@@ -24,13 +24,17 @@ interface AclBindableInterface
 {
     
     /**
-     * Identify the component to the acl.
-     * MUST refer a valid acl resource
+     * Identify the resource to the acl.
+     * MUST refer a valid acl resource <br />
+     * MUST be registered in a hierarchical way from the more specialized to the general one loadable <br />
+     * (e.g) <br />
+     *    <pre>["Article_{$this->id}", "Article"]</pre>
+     * will try to load Article_{$this->id} than fallback on Article resource
      * 
-     * @return string
-     *   Acl resource name
+     * @return string[]
+     *   A list of resource names which refer to a valid one into the acl.
      */
-    public function getAclResourceName(): string;
+    public function getAclResourceHierarchy(): array;
     
     /**
      * Update a user over a permission asked by the acl
