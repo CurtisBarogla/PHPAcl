@@ -130,6 +130,29 @@ class PhpFileEntryLoaderTest extends AclTestCase
         $this->assertSame(["bar", "bar2"], $entry->getPermissions());
     }
     
+    /**
+     * @see \Ness\Component\Acl\Resource\Loader\Entry\PhpFileEntryLoader::load()
+     */
+    public function testLoadWhenAnInvalidInheritanceEntryAsPermissionCannotBeLoadedAndSkipped(): void
+    {
+        $file = self::FIXTURES_DIRECTORY."/invalid/Inheritance";
+        
+        $fooResource = new Resource("FooResource");
+        $barResource = new ExtendableResource("BarResource", $fooResource);
+        
+        $resourceLoader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
+        $resourceLoader
+            ->expects($this->once())
+            ->method("load")
+            ->with("FooResource")
+            ->will($this->returnValue($fooResource));
+        
+        $loader = new PhpFileEntryLoader([$file]);
+        $loader->setLoader($resourceLoader);
+        
+        $entry = $loader->load($barResource, "FooEntry");
+    }
+    
                     /**_____EXCEPTIONS_____**/
     
     /**
@@ -227,32 +250,6 @@ class PhpFileEntryLoaderTest extends AclTestCase
         
         $loader = new PhpFileEntryLoader([$file]);
         $loader->load($resource, "MozEntry");
-    }
-    
-    /**
-     * @see \Ness\Component\Acl\Resource\Loader\Entry\PhpFileEntryLoader::load()
-     */
-    public function testExceptionLoadWhenAnInvalidInheritanceEntryAsPermissionCannotBeLoaded(): void
-    {
-        $this->expectException(EntryNotFoundException::class);
-        $this->expectExceptionMessage("This entry 'BarEntry' cannot be loaded into resource 'BarResource' nor into its parents 'FooResource'");
-        
-        $file = self::FIXTURES_DIRECTORY."/invalid/Inheritance";
-        
-        $fooResource = new Resource("FooResource");
-        $barResource = new ExtendableResource("BarResource", $fooResource);
-        
-        $resourceLoader = $this->getMockBuilder(ResourceLoaderInterface::class)->getMock();
-        $resourceLoader
-            ->expects($this->once())
-            ->method("load")
-            ->with("FooResource")
-            ->will($this->returnValue($fooResource));
-        
-        $loader = new PhpFileEntryLoader([$file]);
-        $loader->setLoader($resourceLoader);
-        
-        $entry = $loader->load($barResource, "FooEntry");
     }
     
 }
