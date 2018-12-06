@@ -56,7 +56,6 @@ class ResetSignalHandler implements ResetSignalHandlerInterface
      */
     public function send(UserInterface $user): bool
     {
-        unset($this->handled[$user->getName()]);
         return $this->store->add(self::PREFIX.\sha1($user->getName()));
     }
     
@@ -71,7 +70,6 @@ class ResetSignalHandler implements ResetSignalHandlerInterface
         
         $user->deleteAttribute($attribute);
         $this->store->remove($identifier);
-        $this->handled[$user->getName()] = true;
     }
     
 }

@@ -37,7 +37,7 @@ class ResetSignalHandlerTest extends AclTestCase
         $store->expects($this->exactly(2))->method("add")->with("ness_reset_signal".\sha1("Foo"))->will($this->onConsecutiveCalls(true, false));
         
         $user = $this->getMockBuilder(UserInterface::class)->disableOriginalConstructor()->getMock();
-        $user->expects($this->exactly(4))->method("getName")->will($this->returnValue("Foo"));
+        $user->expects($this->exactly(2))->method("getName")->will($this->returnValue("Foo"));
         
         $handler = new ResetSignalHandler($store);
         

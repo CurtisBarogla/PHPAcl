@@ -179,13 +179,11 @@ class Acl implements AclInterface
     private function initializeAclUser(UserInterface $user): AclUser
     {
         if(isset($this->loaded[$user->getName()]))
-            $user = $this->loaded[$user->getName()];
-        else {
-            $this->handler->handle($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
-            $user = $this->loaded[$user->getName()] = new AclUser($user, $this->normalizer);
-        }
+            return $this->loaded[$user->getName()];
         
-        return $user;
+        $this->handler->handle($user, AclUser::ACL_ATTRIBUTE_IDENTIFIER);
+        
+        return $this->loaded[$user->getName()] = new AclUser($user, $this->normalizer);
     }
     
     /**
